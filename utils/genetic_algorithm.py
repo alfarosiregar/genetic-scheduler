@@ -1,7 +1,6 @@
 """Algoritma Genetika untuk penjadwalan"""
 import random
 
-
 def buat_populasi_list(populasi_dict):
     """Konversi dictionary populasi ke list"""
     return [{"kode": k, "data": v} for k, v in populasi_dict.items()]
