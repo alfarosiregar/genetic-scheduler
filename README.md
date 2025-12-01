@@ -74,24 +74,3 @@ The application's behavior can be configured through the `config/settings.py` fi
 *   `KROMOSOM_PATH`: Path to the Excel file containing chromosome data (`mnt/db/Kromosom.xlsx`).
 *   `IMAGE_PATH`: Path to the image file used in the application (`mnt/img/schedule_image.jpg`).
 *   `COLUMN_MAPPING`: A dictionary that maps column names to their indices in the `Databases.xlsx` file.  Ensure that the values match the location of the columns in your excel sheets.
-
-## Contributing Guidelines
-
-Contributions are welcome! Here's how you can contribute:
-
-1.  **Fork the repository.**
-2.  **Create a new branch** for your feature or bug fix.
-3.  **Make your changes** and commit them with clear, concise messages.
-4.  **Test your changes** thoroughly.
-5.  **Submit a pull request** with a detailed description of your changes.
-
-## License Information
-
-This project has no specified license. All rights are reserved by the owner.
-
-## Acknowledgments
-
-*   The Streamlit library for providing a simple way to create interactive web applications with Python.
-*   The Pandas library for providing powerful data manipulation and analysis tools.
-*   The Openpyxl library for reading and writing Excel files.
-*   The Pillow library for working with images.
