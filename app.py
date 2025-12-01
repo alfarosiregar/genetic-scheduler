@@ -70,6 +70,10 @@ if databases is not None:
             'Total Dosen': [len(databases['dosen'])],
             'Total Mata Kuliah': [len(databases['matkul'])],
             'Total Prodi': [len(databases['prodi'])],
+            'Total Kelas': [len(databases['kelas'])],
+            'Total Hari': [len(databases['hari'])],
+            'Total Waktu': [len(databases['waktu'])],
+            'Total Ruangan': [len(databases['ruangan'])]
         })
         st.dataframe(preview_df, use_container_width=True)
 
