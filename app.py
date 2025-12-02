@@ -58,4 +58,4 @@ with col3:
 
 # Footer
 st.markdown("---")
-st.markdown("<center>🧬 Genetic Scheduler v1.0 | Dibuat dengan ❤️ menggunakan Streamlit</center>", unsafe_allow_html=True)
+st.markdown("<center>🧬 Genetic Scheduler v1.1 </center>", unsafe_allow_html=True)
