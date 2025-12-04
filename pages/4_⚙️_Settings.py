@@ -2,6 +2,7 @@
 Page 4: Pengaturan
 """
 import streamlit as st
+from components.header import display_image_on_settings
 
 st.set_page_config(
     page_title="Settings - Genetic Scheduler",
@@ -10,6 +11,9 @@ st.set_page_config(
 )
 
 st.title("⚙️ Pengaturan Aplikasi")
+display_image_on_settings()
+
+st.markdown("""---""")
 
 st.markdown("### 🎨 Tema")
 theme = st.selectbox("Pilih Tema", ["Light", "Dark", "Auto"])
@@ -24,6 +28,8 @@ with col1:
 with col2:
     st.slider("Default Mutation Rate", 0.0, 1.0, 0.1)
     st.slider("Default Crossover Rate", 0.0, 1.0, 0.8)
+
+st.markdown("""---""")
 
 st.markdown("### 📁 Data Management")
 
@@ -40,6 +46,8 @@ with col2:
 with col3:
     if st.button("📥 Import Settings"):
         st.info("Feature coming soon!")
+
+st.markdown("""---""")
 
 st.markdown("### ℹ️ Informasi Aplikasi")
 st.info("""

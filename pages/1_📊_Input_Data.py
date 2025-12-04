@@ -4,7 +4,7 @@ Page 1: Input Data Jadwal
 import streamlit as st
 import pandas as pd
 from utils.data_loader import load_databases
-from components.header import apply_custom_css
+from components.header import apply_custom_css, display_image_on_input
 
 # Page config
 st.set_page_config(
@@ -17,6 +17,8 @@ apply_custom_css()
 
 st.title("📊 Input Data Jadwal")
 st.markdown("Tambahkan data jadwal kuliah yang akan dioptimasi")
+display_image_on_input()
+st.markdown("""---""")
 
 # Initialize session state
 if "populasi_data" not in st.session_state:
@@ -82,6 +84,7 @@ else:
         )
     
     # Stats
+    st.markdown("""---""")
     st.markdown("### 📊 Statistik")
     col1, col2, col3, col4 = st.columns(4)
     

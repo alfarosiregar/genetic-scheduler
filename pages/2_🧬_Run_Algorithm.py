@@ -5,6 +5,7 @@ import streamlit as st
 import pandas as pd
 from utils.genetic_algorithm import run_genetic_algorithm
 from components.results import display_evaluasi, display_parents, display_offspring
+from components.header import display_image_on_run
 
 st.set_page_config(
     page_title="Run Algorithm - Genetic Scheduler",
@@ -13,6 +14,8 @@ st.set_page_config(
 )
 
 st.title("🧬 Jalankan Algoritma Genetika")
+display_image_on_run()
+st.markdown("""---""")
 
 # Check if data exists
 if "populasi_data" not in st.session_state or len(st.session_state.populasi_data) == 0:
@@ -28,6 +31,8 @@ df = pd.DataFrame.from_dict(
     columns=["Dosen", "Matkul", "SKS", "Prodi", "Hari", "Waktu", "Ruangan", "Blok"]
 )
 st.dataframe(df, use_container_width=True)
+
+st.markdown("""---""")
 
 # Algorithm parameters
 st.markdown("### ⚙️ Parameter Algoritma")
@@ -54,7 +59,9 @@ if st.button("🚀 Jalankan Algoritma", type="primary", use_container_width=True
             
             # Display results
             st.success("✅ Algoritma selesai dijalankan!")
-            
+
+            st.markdown("""---""")
+
             display_evaluasi(results['populasi'])
             display_parents(results['parent1'], results['parent2'])
             display_offspring(results['anak_list'])

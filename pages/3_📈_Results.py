@@ -4,6 +4,7 @@ Page 3: Hasil dan Analisis
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from components.header import display_image_on_results
 
 st.set_page_config(
     page_title="Results - Genetic Scheduler",
@@ -12,6 +13,8 @@ st.set_page_config(
 )
 
 st.title("📈 Hasil dan Analisis")
+display_image_on_results()
+st.markdown("""---""")
 
 # Check if results exist
 if "ga_results" not in st.session_state:
@@ -40,6 +43,8 @@ with col2:
     st.write(f"- Waktu: {best['data'][5]}")
     st.write(f"- Ruangan: {best['data'][6]}")
 
+st.markdown("""---""")
+
 # Comparison chart
 st.markdown("### 📊 Perbandingan Fitness")
 
@@ -55,6 +60,8 @@ fig = px.bar(df_fitness, x='Kode', y='Fitness', color='Type',
              title='Perbandingan Fitness Score',
              barmode='group')
 st.plotly_chart(fig, use_container_width=True)
+
+st.markdown("""---""")
 
 # Download results
 st.markdown("### 💾 Download Hasil")
