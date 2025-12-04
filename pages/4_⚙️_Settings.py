@@ -51,7 +51,7 @@ st.markdown("""---""")
 
 st.markdown("### ℹ️ Informasi Aplikasi")
 st.info("""
-**Genetic Scheduler v1.0**
+**Genetic Scheduler v1.2**
 
 Aplikasi penjadwalan kuliah menggunakan Algoritma Genetika.
 - Technology: Streamlit + Python
