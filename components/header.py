@@ -35,129 +35,167 @@ def display_header():
     st.markdown("<div class='big-title'>🧬 Genetic Scheduler</div>", unsafe_allow_html=True)
     st.markdown("<div class='sub'>Aplikasi Penjadwalan Kuliah berbasis Algoritma Genetika</div>", unsafe_allow_html=True)
 
+def _render_image(path):
+    try:
+        image = Image.open(path)
+        buffered = BytesIO()
+        image.save(buffered, format="JPEG")
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+
+        st.markdown(
+            f"""
+            <div style="text-align: center;">
+                <img src="data:image/jpeg;base64,{img_str}"
+                style="width: 100%; 
+                    max-width: 500px;
+                    height: auto; 
+                    border-radius: 20px;
+                    margin-bottom: 20px; 
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    except Exception as e:
+        st.warning(f"⚠️ Tidak dapat memuat gambar: {e}")
 
 def display_image_on_app():
-    """Tampilkan gambar dengan styling"""
-    try:
-        image = Image.open(APP_IMAGE_PATH)
-        buffered = BytesIO()
-        image.save(buffered, format="JPEG")
-        img_str = base64.b64encode(buffered.getvalue()).decode()
-        
-        st.markdown(
-            f"""
-            <div style="text-align: center;">
-                <img src="data:image/jpeg;base64,{img_str}"
-                style="width: 100%; 
-                            max-width: 500px; 
-                            height: auto; 
-                            border-radius: 20px;
-                            margin-bottom: 20px; 
-                            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-    except Exception as e:
-        st.warning(f"⚠️ Tidak dapat memuat gambar: {e}")
+    _render_image(APP_IMAGE_PATH)
 
 def display_image_on_input():
-    """Tampilkan gambar dengan styling"""
-    try:
-        image = Image.open(INPUT_IMAGE_PATH)
-        buffered = BytesIO()
-        image.save(buffered, format="JPEG")
-        img_str = base64.b64encode(buffered.getvalue()).decode()
-        
-        st.markdown(
-            f"""
-            <div style="text-align: center;">
-                <img src="data:image/jpeg;base64,{img_str}"
-                style="width: 100%; 
-                            max-width: 500px; 
-                            height: auto; 
-                            border-radius: 20px;
-                            margin-bottom: 20px; 
-                            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-    except Exception as e:
-        st.warning(f"⚠️ Tidak dapat memuat gambar: {e}")
+    _render_image(INPUT_IMAGE_PATH)
 
 def display_image_on_run():
-    """Tampilkan gambar dengan styling"""
-    try:
-        image = Image.open(RUN_IMAGE_PATH)
-        buffered = BytesIO()
-        image.save(buffered, format="JPEG")
-        img_str = base64.b64encode(buffered.getvalue()).decode()
-        
-        st.markdown(
-            f"""
-            <div style="text-align: center;">
-                <img src="data:image/jpeg;base64,{img_str}"
-                style="width: 100%; 
-                            max-width: 500px; 
-                            height: auto; 
-                            border-radius: 20px;
-                            margin-bottom: 20px; 
-                            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-    except Exception as e:
-        st.warning(f"⚠️ Tidak dapat memuat gambar: {e}")
+    _render_image(RUN_IMAGE_PATH)
 
 def display_image_on_results():
-    """Tampilkan gambar dengan styling"""
-    try:
-        image = Image.open(RESULT_IMAGE_PATH)
-        buffered = BytesIO()
-        image.save(buffered, format="JPEG")
-        img_str = base64.b64encode(buffered.getvalue()).decode()
-        
-        st.markdown(
-            f"""
-            <div style="text-align: center;">
-                <img src="data:image/jpeg;base64,{img_str}"
-                style="width: 100%; 
-                            max-width: 500px; 
-                            height: auto; 
-                            border-radius: 20px;
-                            margin-bottom: 20px; 
-                            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-    except Exception as e:
-        st.warning(f"⚠️ Tidak dapat memuat gambar: {e}")
-
+    _render_image(RESULT_IMAGE_PATH)
 
 def display_image_on_settings():
-    """Tampilkan gambar dengan styling"""
-    try:
-        image = Image.open(SETTING_IMAGE_PATH)
-        buffered = BytesIO()
-        image.save(buffered, format="JPEG")
-        img_str = base64.b64encode(buffered.getvalue()).decode()
+    _render_image(SETTING_IMAGE_PATH)
+
+# def display_image_on_app():
+#     """Tampilkan gambar dengan styling"""
+#     try:
+#         image = Image.open(APP_IMAGE_PATH)
+#         buffered = BytesIO()
+#         image.save(buffered, format="JPEG")
+#         img_str = base64.b64encode(buffered.getvalue()).decode()
         
-        st.markdown(
-            f"""
-            <div style="text-align: center;">
-                <img src="data:image/jpeg;base64,{img_str}"
-                style="width: 100%; 
-                            max-width: 500px; 
-                            height: auto; 
-                            border-radius: 20px;
-                            margin-bottom: 20px; 
-                            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-    except Exception as e:
-        st.warning(f"⚠️ Tidak dapat memuat gambar: {e}")
+#         st.markdown(
+#             f"""
+#             <div style="text-align: center;">
+#                 <img src="data:image/jpeg;base64,{img_str}"
+#                 style="width: 100%; 
+#                             max-width: 500px; 
+#                             height: auto; 
+#                             border-radius: 20px;
+#                             margin-bottom: 20px; 
+#                             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+#             </div>
+#             """,
+#             unsafe_allow_html=True
+#         )
+#     except Exception as e:
+#         st.warning(f"⚠️ Tidak dapat memuat gambar: {e}")
+
+# def display_image_on_input():
+#     """Tampilkan gambar dengan styling"""
+#     try:
+#         image = Image.open(INPUT_IMAGE_PATH)
+#         buffered = BytesIO()
+#         image.save(buffered, format="JPEG")
+#         img_str = base64.b64encode(buffered.getvalue()).decode()
+        
+#         st.markdown(
+#             f"""
+#             <div style="text-align: center;">
+#                 <img src="data:image/jpeg;base64,{img_str}"
+#                 style="width: 100%; 
+#                             max-width: 500px; 
+#                             height: auto; 
+#                             border-radius: 20px;
+#                             margin-bottom: 20px; 
+#                             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+#             </div>
+#             """,
+#             unsafe_allow_html=True
+#         )
+#     except Exception as e:
+#         st.warning(f"⚠️ Tidak dapat memuat gambar: {e}")
+
+# def display_image_on_run():
+#     """Tampilkan gambar dengan styling"""
+#     try:
+#         image = Image.open(RUN_IMAGE_PATH)
+#         buffered = BytesIO()
+#         image.save(buffered, format="JPEG")
+#         img_str = base64.b64encode(buffered.getvalue()).decode()
+        
+#         st.markdown(
+#             f"""
+#             <div style="text-align: center;">
+#                 <img src="data:image/jpeg;base64,{img_str}"
+#                 style="width: 100%; 
+#                             max-width: 500px; 
+#                             height: auto; 
+#                             border-radius: 20px;
+#                             margin-bottom: 20px; 
+#                             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+#             </div>
+#             """,
+#             unsafe_allow_html=True
+#         )
+#     except Exception as e:
+#         st.warning(f"⚠️ Tidak dapat memuat gambar: {e}")
+
+# def display_image_on_results():
+#     """Tampilkan gambar dengan styling"""
+#     try:
+#         image = Image.open(RESULT_IMAGE_PATH)
+#         buffered = BytesIO()
+#         image.save(buffered, format="JPEG")
+#         img_str = base64.b64encode(buffered.getvalue()).decode()
+        
+#         st.markdown(
+#             f"""
+#             <div style="text-align: center;">
+#                 <img src="data:image/jpeg;base64,{img_str}"
+#                 style="width: 100%; 
+#                             max-width: 500px; 
+#                             height: auto; 
+#                             border-radius: 20px;
+#                             margin-bottom: 20px; 
+#                             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+#             </div>
+#             """,
+#             unsafe_allow_html=True
+#         )
+#     except Exception as e:
+#         st.warning(f"⚠️ Tidak dapat memuat gambar: {e}")
+
+
+# def display_image_on_settings():
+#     """Tampilkan gambar dengan styling"""
+#     try:
+#         image = Image.open(SETTING_IMAGE_PATH)
+#         buffered = BytesIO()
+#         image.save(buffered, format="JPEG")
+#         img_str = base64.b64encode(buffered.getvalue()).decode()
+        
+#         st.markdown(
+#             f"""
+#             <div style="text-align: center;">
+#                 <img src="data:image/jpeg;base64,{img_str}"
+#                 style="width: 100%; 
+#                             max-width: 500px; 
+#                             height: auto; 
+#                             border-radius: 20px;
+#                             margin-bottom: 20px; 
+#                             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+#             </div>
+#             """,
+#             unsafe_allow_html=True
+#         )
+#     except Exception as e:
+#         st.warning(f"⚠️ Tidak dapat memuat gambar: {e}")
