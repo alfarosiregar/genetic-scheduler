@@ -1,8 +1,5 @@
 """
-Genetic Algorithm untuk Penjadwalan - FULLY OPTIMIZED VERSION
-- Configurable early stopping
-- No aggressive filtering
-- Full generation execution
+Genetic Algorithm untuk Penjadwalan
 """
 
 import random
@@ -273,7 +270,7 @@ def run_genetic_algorithm(populasi_data, databases,
                           generations=10, 
                           mutation_rate=0.15,
                           elite_size=2,
-                          early_stopping=False):  # ✅ TAMBAH PARAMETER
+                          early_stopping=False):
     """
     Algoritma Genetika OPTIMIZED untuk penjadwalan
     
@@ -329,15 +326,6 @@ def run_genetic_algorithm(populasi_data, databases,
         
         for child in offspring:
             mutasi(child, current_rate, databases)
-        
-        # ===== IMMIGRATION (every 3 generations) =====
-        # Disabled to maintain population integrity
-        # Immigration can cause duplicate signatures which reduces population size
-        # if gen % 3 == 0:
-        #     num_immigrants = min(2, len(offspring) // 10)
-        #     for i in range(num_immigrants):
-        #         immigrant = create_immigrant(gen, populasi_data, databases)
-        #         offspring[i] = immigrant
         
         # ===== EVALUATION =====
         offspring = evaluasi_populasi(offspring)
@@ -409,7 +397,7 @@ def run_genetic_algorithm(populasi_data, databases,
         print(f"Gen {gen}: Best Fitness={best_fitness:.4f}, Avg Fitness={avg_fitness:.4f}, Konflik={best_konflik}")
         
         # ===== EARLY STOPPING (OPTIONAL) =====
-        if early_stopping:  # ✅ HANYA JIKA early_stopping=True
+        if early_stopping:
             MIN_GENERATIONS = 5
             if gen >= MIN_GENERATIONS and best_fitness >= 0.99 and best_konflik == 0:
                 print(f"✓ Optimal solution found at generation {gen} (early stopping)!")
@@ -475,7 +463,7 @@ def run_genetic_algorithm(populasi_data, databases,
             'mutation_rate': mutation_rate,
             'elite_size': elite_size,
             'population_size': len(populasi),
-            'early_stopping': early_stopping  # ✅ TRACK PARAMETER
+            'early_stopping': early_stopping
         }
     }
 
@@ -542,7 +530,7 @@ def filter_unique_dosen_matkul_prodi(populasi):
     return list(unique_dict.values())
 
 
-def buat_tabel_rekomendasi_jadwal(results, filter_duplicates=True):  # ✅ TAMBAH PARAMETER
+def buat_tabel_rekomendasi_jadwal(results, filter_duplicates=True):
     """
     Buat tabel rekomendasi jadwal
     
@@ -555,7 +543,6 @@ def buat_tabel_rekomendasi_jadwal(results, filter_duplicates=True):  # ✅ TAMBA
     """
     populasi_akhir = results['populasi_akhir']
     
-    # ✅ OPTIONAL FILTERING
     if filter_duplicates:
         populasi_filtered = filter_unique_dosen_matkul_prodi(populasi_akhir)
     else:
@@ -664,69 +651,3 @@ def parse_csv_input(csv_file):
             populasi_dict[kode] = [dosen, matkul, prodi]
     
     return populasi_dict, databases
-
-
-# ========== PRINT FUNCTIONS ==========
-
-def print_tabel_rekomendasi(tabel_rekomendasi):
-    """Print tabel rekomendasi jadwal"""
-    print("\n" + "="*120)
-    print(" " * 40 + "TABEL REKOMENDASI JADWAL")
-    print("="*120)
-    
-    print(f"{'No':<4} {'Dosen':<25} {'Mata Kuliah':<25} {'Prodi':<20} "
-          f"{'SKS':<5} {'Hari':<10} {'Waktu':<15} {'Ruangan':<10} {'Fit':<6} {'Konf':<5}")
-    print("="*120)
-    
-    for row in tabel_rekomendasi:
-        print(f"{row['No']:<4} {row['Dosen']:<25} {row['Mata Kuliah']:<25} {row['Prodi']:<20} "
-              f"{row['SKS']:<5} {row['Hari']:<10} {row['Waktu']:<15} {row['Ruangan']:<10} "
-              f"{row['Fitness']:<6.4f} {row['Konflik']:<5}")
-    
-    print("="*120)
-    print(f"\n📊 Total Schedules: {len(tabel_rekomendasi)}")
-    
-    total_konflik = sum(row['Konflik'] for row in tabel_rekomendasi)
-    print(f"⚠️  Total Conflicts: {total_konflik}")
-    
-    if total_konflik == 0:
-        print("✓ OPTIMAL SCHEDULE! No conflicts.")
-    else:
-        print(f"⚠️  {total_konflik} conflicts need to be resolved.")
-    
-    print("="*120 + "\n")
-
-
-def print_summary(results):
-    """Print summary hasil GA"""
-    populasi_filtered = filter_unique_dosen_matkul_prodi(results['populasi_akhir'])
-    
-    print("\n" + "="*70)
-    print("GENETIC ALGORITHM RESULTS SUMMARY")
-    print("="*70)
-    
-    print(f"\n📊 STATISTICS:")
-    print(f"  • Total Generations: {results['total_generations']}")
-    print(f"  • Population Size: {results['parameters']['population_size']}")
-    print(f"  • Mutation Rate: {results['parameters']['mutation_rate']}")
-    print(f"  • Elite Size: {results['parameters']['elite_size']}")
-    print(f"  • Early Stopping: {results['parameters']['early_stopping']}")
-    
-    history = results['history']
-    print(f"\n📈 EVOLUTION PROGRESS:")
-    print(f"  • Initial Fitness: {history['best_fitness'][0]:.4f}")
-    print(f"  • Final Fitness: {history['best_fitness'][-1]:.4f}")
-    print(f"  • Fitness Improvement: {results['improvement']['fitness_improvement']:.4f}")
-    print(f"  • Initial Conflicts: {history['best_konflik'][0]}")
-    print(f"  • Final Conflicts: {history['best_konflik'][-1]}")
-    print(f"  • Conflict Reduction: {results['improvement']['konflik_reduction']}")
-    
-    print(f"\n✅ FINAL RESULTS:")
-    print(f"  • Total Unique Schedules: {len(populasi_filtered)}")
-    
-    if history['best_konflik'][-1] == 0:
-        print(f"  • Status: ✓ OPTIMAL (No conflicts)")
-    else:
-        print(f"  • Status: ⚠️  SUBOPTIMAL ({history['best_konflik'][-1]} conflicts)")
-    
-    print("\n" + "="*70 + "\n")

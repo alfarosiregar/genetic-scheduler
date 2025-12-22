@@ -1,6 +1,5 @@
 """
-Page 3: Hasil dan Analisis Lengkap - OPTIMIZED VERSION
-Compatible with genetic_algorithm_optimized.py
+Page 3: Hasil dan Analisis Lengkap
 """
 import streamlit as st
 import pandas as pd
@@ -71,7 +70,7 @@ results = st.session_state.ga_results
 stats = get_summary_stats(results)
 
 # ========== EXECUTIVE SUMMARY ==========
-st.markdown("### 🎯 Ringkasan Eksekutif")
+st.markdown("### 🎯 Ringkasan")
 
 col1, col2, col3, col4, col5 = st.columns(5)
 

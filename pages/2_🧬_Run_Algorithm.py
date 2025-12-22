@@ -1,6 +1,5 @@
 """
-Page 2: Jalankan Algoritma Genetika - OPTIMIZED VERSION
-Compatible with genetic_algorithm_optimized.py
+Page 2: Jalankan Algoritma
 """
 import streamlit as st
 import pandas as pd
@@ -220,31 +219,6 @@ if "ga_results" in st.session_state and st.session_state.ga_results is not None:
     })
     
     st.line_chart(chart_data.set_index('Generasi'))
-    
-    # Quick stats
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        convergence_rate = stats['fitness_improvement'] / results['total_generations']
-        st.metric(
-            "Convergence Rate",
-            f"{convergence_rate:.4f}",
-            help="Peningkatan fitness per generasi"
-        )
-    
-    with col2:
-        konflik_reduction = stats['initial_konflik'] - stats['final_konflik']
-        st.metric(
-            "Konflik Berkurang",
-            konflik_reduction,
-            help="Total pengurangan konflik"
-        )
-    
-    with col3:
-        if stats['reached_optimal']:
-            st.success("✅ Status: OPTIMAL")
-        else:
-            st.warning("⚠️ Status: SUBOPTIMAL")
     
     # ========== COMPARISON TABLE ==========
     with st.expander("🔍 Lihat Perbandingan Populasi Awal vs Akhir"):

@@ -41,7 +41,7 @@ Aplikasi ini membantu Anda membuat jadwal kuliah optimal menggunakan **Algoritma
 
 1. Pilih menu di **sidebar kiri** ⬅️
 2. Mulai dari **Input Data** untuk menambahkan jadwal
-3. Jalankan **Algorithm** untuk optimasi
+3. Jalankan proses optimasi di **Run Algorithm**
 4. Lihat **Results** untuk melihat jadwal terbaik
 
 **💡 Tips:** Minimal tambahkan 2 jadwal sebelum menjalankan algoritma!

@@ -5,6 +5,7 @@ import streamlit as st
 import pandas as pd
 from utils.data_loader import load_databases
 from components.header import apply_custom_css, display_image_on_input
+from components.sidebar import render_input_sidebar
 
 # Page config
 st.set_page_config(
@@ -28,23 +29,9 @@ if "populasi_data" not in st.session_state:
 databases = load_databases()
 
 # Sidebar input form
-st.sidebar.title("➕ Tambah Data Jadwal")
-
-if databases is not None:
-    with st.sidebar.form("input_form"):
-        dosen = st.selectbox("Nama Dosen", options=databases['dosen'])
-        matkul = st.selectbox("Mata Kuliah", options=databases['matkul'])
-        prodi = st.selectbox("Program Studi", options=databases['prodi'])
-
-        submitted = st.form_submit_button("➕ Tambah Data")
-        
-        if submitted:
-            kode = f"C{len(st.session_state.populasi_data)+1}"
-            st.session_state.populasi_data[kode] = [
-                dosen, matkul, prodi,
-            ]
-            st.success(f"✅ Data berhasil ditambahkan dengan kode {kode}!")
-            st.rerun()
+submitted = render_input_sidebar(databases)
+if submitted:
+    st.rerun()
 
 # Display data
 st.markdown("### 📌 Data Jadwal yang Sudah Ditambahkan")
