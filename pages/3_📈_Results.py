@@ -4,6 +4,7 @@ Page 3: Hasil dan Analisis Lengkap
 import streamlit as st
 import pandas as pd
 import altair as alt
+from components.header import apply_custom_css, display_image_on_results
 from utils.genetic_algorithm import (
     get_summary_stats, 
     format_kromosom_detail,
@@ -58,6 +59,8 @@ st.markdown("""
 # ========== TITLE ==========
 st.title("📈 Hasil dan Analisis Lengkap")
 st.markdown("Analisis detail hasil optimasi Algoritma Genetika")
+display_image_on_results()
+st.markdown("""---""")
 
 # ========== CHECK IF RESULTS EXIST ==========
 if "ga_results" not in st.session_state:

@@ -3,8 +3,10 @@ Page 2: Jalankan Algoritma
 """
 import streamlit as st
 import pandas as pd
-from utils.genetic_algorithm import run_genetic_algorithm, get_summary_stats, format_kromosom_detail
 from utils.data_loader import load_databases
+from components.header import apply_custom_css, display_image_on_run
+from utils.genetic_algorithm import run_genetic_algorithm, get_summary_stats, format_kromosom_detail
+
 
 st.set_page_config(
     page_title="Run Algorithm - Genetic Scheduler",
@@ -22,6 +24,9 @@ if 'ga_config' not in st.session_state:
 
 st.title("🧬 Jalankan Algoritma Genetika")
 st.markdown("Optimasi jadwal menggunakan Algoritma Genetika dengan multi-generasi iterasi")
+display_image_on_run()
+st.markdown("""---""")
+
 
 # Check if data exists
 if "populasi_data" not in st.session_state or len(st.session_state.populasi_data) == 0:
@@ -40,6 +45,7 @@ df = pd.DataFrame.from_dict(
     columns=["Dosen", "Matkul", "Prodi"]
 )
 st.dataframe(df, use_container_width=True)
+st.markdown("""---""")
 
 # ========== ALGORITHM PARAMETERS ==========
 st.markdown("### ⚙️ Parameter Algoritma Genetika")
@@ -208,6 +214,7 @@ if "ga_results" in st.session_state and st.session_state.ga_results is not None:
     else:
         improvement_pct = results['improvement']['improvement_percentage']
         st.info(f"📈 **Peningkatan Fitness: {improvement_pct}%** - Masih ada {stats['final_konflik']} konflik")
+    st.markdown("""---""")
     
     # ========== EVOLUTION CHART ==========
     st.markdown("### 📈 Grafik Evolusi Fitness")
@@ -219,7 +226,7 @@ if "ga_results" in st.session_state and st.session_state.ga_results is not None:
     })
     
     st.line_chart(chart_data.set_index('Generasi'))
-    
+
     # ========== COMPARISON TABLE ==========
     with st.expander("🔍 Lihat Perbandingan Populasi Awal vs Akhir"):
         col1, col2 = st.columns(2)
