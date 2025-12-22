@@ -34,20 +34,14 @@ if databases is not None:
     with st.sidebar.form("input_form"):
         dosen = st.selectbox("Nama Dosen", options=databases['dosen'])
         matkul = st.selectbox("Mata Kuliah", options=databases['matkul'])
-        sks = st.selectbox("SKS", options=databases['sks'])
         prodi = st.selectbox("Program Studi", options=databases['prodi'])
-        kelas = st.selectbox("Kelas", options=databases['kelas'])
-        hari = st.selectbox("Hari", options=databases['hari'])
-        waktu = st.selectbox("Waktu", options=databases['waktu'])
-        ruangan = st.selectbox("Ruangan", options=databases['ruangan'])
-        blok = st.selectbox("Blok", options=databases['blok'])
-        
+
         submitted = st.form_submit_button("➕ Tambah Data")
         
         if submitted:
             kode = f"C{len(st.session_state.populasi_data)+1}"
             st.session_state.populasi_data[kode] = [
-                dosen, matkul, sks, prodi, hari, waktu, ruangan, blok
+                dosen, matkul, prodi,
             ]
             st.success(f"✅ Data berhasil ditambahkan dengan kode {kode}!")
             st.rerun()
@@ -61,7 +55,7 @@ else:
     df = pd.DataFrame.from_dict(
         st.session_state.populasi_data,
         orient="index",
-        columns=["Dosen", "Matkul", "SKS", "Prodi", "Hari", "Waktu", "Ruangan", "Blok"]
+        columns=["Dosen", "Matkul", "Prodi"]
     )
     
     st.dataframe(df, use_container_width=True)
@@ -93,10 +87,20 @@ else:
     with col2:
         st.metric("Dosen Unik", df['Dosen'].nunique())
     with col3:
-        st.metric("Ruangan Unik", df['Ruangan'].nunique())
+        st.metric("Mata Kuliah Unik", df['Matkul'].nunique())
     with col4:
-        st.metric("Hari Unik", df['Hari'].nunique())
+        st.metric("Prodi Unik", df['Prodi'].nunique())
 
 # Navigation hint
 st.markdown("---")
-st.info("➡️ **Langkah Selanjutnya:** Pergi ke halaman **Run Algorithm** untuk optimasi jadwal!")
+st.info("➡️ **Jika sudah Input Data,** Selanjutnya: Pergi ke halaman **Run Algorithm** untuk optimasi jadwal!")
+if st.button("🧬 Buka Halaman Run Algorithm", use_container_width=True):
+    st.switch_page("pages/2_🧬_Run_Algorithm.py")
+
+# ========== FOOTER ==========
+st.markdown("---")
+st.markdown("""
+<div style="text-align: center; color: #666; padding: 20px;">
+    <p>🧬 Genetic Scheduler - Input Data</p>
+</div>
+""", unsafe_allow_html=True)
