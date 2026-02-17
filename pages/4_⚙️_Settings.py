@@ -12,14 +12,13 @@ st.set_page_config(
 
 st.title("⚙️ Pengaturan Aplikasi")
 display_image_on_settings()
-
 st.markdown("""---""")
 
 st.markdown("### 🎨 Tema")
 theme = st.selectbox("Pilih Tema", ["Light", "Dark", "Auto"])
+st.markdown("""---""")
 
 st.markdown("### 🔧 Konfigurasi Algoritma")
-
 col1, col2 = st.columns(2)
 with col1:
     st.number_input("Default Generations", min_value=1, max_value=1000, value=10)
@@ -56,3 +55,11 @@ st.info("""
 Aplikasi penjadwalan kuliah menggunakan Algoritma Genetika.
 - Technology: Streamlit + Python
 """)
+
+# ========== FOOTER ==========
+st.markdown("---")
+st.markdown("""
+<div style="text-align: center; color: #666; padding: 20px;">
+    <p>⚙️ Genetic Scheduler - Settings</p>
+</div>
+""", unsafe_allow_html=True)

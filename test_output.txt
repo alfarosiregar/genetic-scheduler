@@ -1,0 +1,2 @@
+Input size: 3
+Output size: 3
