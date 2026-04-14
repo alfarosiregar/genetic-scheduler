@@ -33,6 +33,33 @@ submitted = render_input_sidebar(databases)
 if submitted:
     st.rerun()
 
+# Upload data from Excel
+st.markdown("### 📁 Upload Data dari Excel")
+uploaded_file = st.file_uploader("Pilih file Excel (.xlsx) dengan kolom: **Dosen**, **Matkul**, **Prodi**", type=["xlsx", "xls"])
+if uploaded_file is not None:
+    try:
+        df_upload = pd.read_excel(uploaded_file)
+        required_cols = ["Dosen", "Matkul", "Prodi"]
+        
+        if all(col in df_upload.columns for col in required_cols):
+            if st.button("➕ Tambahkan Data dari File", type="primary"):
+                added_count = 0
+                for _, row in df_upload.iterrows():
+                    kode = f"C{len(st.session_state.populasi_data)+1}"
+                    st.session_state.populasi_data[kode] = [
+                        str(row["Dosen"]), str(row["Matkul"]), str(row["Prodi"])
+                    ]
+                    added_count += 1
+                st.success(f"✅ Berhasil menambahkan {added_count} data jadwal!")
+                st.rerun()
+        else:
+            missing = [col for col in required_cols if col not in df_upload.columns]
+            st.error(f"❌ File tidak valid! Kolom yang wajib ada namun tidak ditemukan: {', '.join(missing)}")
+    except Exception as e:
+        st.error(f"❌ Error membaca file: {e}")
+
+st.markdown("""---""")
+
 # Display data
 st.markdown("### 📌 Data Jadwal yang Sudah Ditambahkan")
 
