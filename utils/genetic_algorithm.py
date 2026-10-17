@@ -1,28 +1,135 @@
 """
 Genetic Algorithm untuk Penjadwalan
+====================================
+Representasi kromosom (index data):
+    [0] dosen    [1] matkul   [2] prodi
+    [3] sks      [4] hari     [5] waktu   [6] ruangan
+
+Kaidah metode yang diterapkan:
+    1. Seleksi turnamen - memilih pasangan induk terbaik dari k sampel acak.
+    2. Crossover one-cut-point pada gen penjadwalan [3:7] dengan tetap menjaga
+       gen kecocokan [0:3] (dosen, matkul, prodi) utuh dari masing-masing
+       parent sehingga penugasan tetap koheren dan menghasilkan kombinasi
+       baru antara (sks, hari, waktu, ruangan) dari kedua parent.
+    3. Mutasi per-gen dengan probabilitas mutation_rate per gen (kaidah GA
+       standar) pada gen penjadwalan [3:7]; gen kecocokan [0:3] tidak dimutasi.
+    4. Evaluasi fitness komprehensif: setiap pasangan kromosom dibandingkan
+       tepat satu kali (i vs j>i), mencakup konflik ruangan (ruangan sama saat
+       waktu bentrok) dan konflik dosen (dosen sama mengajar bersamaan).
+       Bentrok waktu dideteksi sebagai OVERLAP INTERVAL (HH.MM-HH.MM), bukan
+       sekadar kesetaraan string slot, sehingga slot yang tumpang tindih
+       parsial (mis. '08.00-11.20' vs '08.30-09.40') juga terdeteksi.
+    5. Elitism kontekstual per penugasan (niche elitism): kandidat anak
+       dievaluasi langsung terhadap konteks populasi jadwal saat ini sehingga
+       setiap penugasan punya tepat satu jadwal dan total konflik dijamin
+       monoton turun (tidak pernah memburuk).
+    6. Early stopping berbasis stagnasi: berhenti bila total konflik jadwal
+       tak membaik selama `patience` generasi, atau saat 0 konflik tercapai.
+    7. Seed opsional untuk reproduksibilitas eksperimen.
 """
 
 import random
-import copy
-import csv
-from collections import defaultdict
+
+# Index gene dalam kromosom
+IDX_DOSEN = 0
+IDX_MATKUL = 1
+IDX_PRODI = 2
+IDX_SKS = 3
+IDX_HARI = 4
+IDX_WAKTU = 5
+IDX_RUANGAN = 6
+
+# Gen "kecocokan" (penugasan) tidak diacak; gen [3:] adalah gen penjadwalan
+GENE_MAP = {
+    IDX_SKS: 'sks',
+    IDX_HARI: 'hari',
+    IDX_WAKTU: 'waktu',
+    IDX_RUANGAN: 'ruangan',
+}
+
+
+# ========== PARSER WAKTU (INTERVAL) ==========
+
+# Cache: string slot waktu -> (start_menit, end_menit) | None bila tak terparse
+_WAKTU_CACHE = {}
+
+
+def parse_waktu(slot_waktu):
+    """
+    Parse slot waktu "HH.MM-HH.MM" (juga menerima "HH:MM" dan en-dash "\u2013"
+    sebagai pemisah) menjadi interval menit (start, end).
+
+    Return None bila format tidak dikenali. Hasil di-cache karena jumlah slot
+    waktu di database terbatas dan fungsi ini dipanggil berulang-ulang saat
+    evaluasi populasi.
+    """
+    if slot_waktu in _WAKTU_CACHE:
+        return _WAKTU_CACHE[slot_waktu]
+
+    hasil = None
+    try:
+        kiri, kanan = str(slot_waktu).replace('\u2013', '-').split('-', 1)
+        h1, m1 = kiri.strip().replace(':', '.').split('.', 1)
+        h2, m2 = kanan.strip().replace(':', '.').split('.', 1)
+        start = int(h1) * 60 + int(m1)
+        end = int(h2) * 60 + int(m2)
+        if end > start:
+            hasil = (start, end)
+    except (ValueError, IndexError, AttributeError):
+        hasil = None
+
+    _WAKTU_CACHE[slot_waktu] = hasil
+    return hasil
+
+
+def waktu_bentrok(slot_a, slot_b):
+    """
+    True bila dua slot waktu BENTROK: interval waktunya tumpang tindih
+    (termasuk overlap parsial, mis. '08.00-11.20' vs '08.30-09.40', atau
+    nested). Slot yang bersentuhan di tepi (end == start, back-to-back)
+    TIDAK dianggap bentrok.
+
+    Bila salah satu slot tidak dapat di-parse, fallback ke kesetaraan string:
+    slot identik tetap dianggap bentrok, slot berbeda dianggap tidak.
+    """
+    if slot_a == slot_b:
+        return True  # slot identik pasti bentrok (juga saat tak terparse)
+    ia, ib = parse_waktu(slot_a), parse_waktu(slot_b)
+    if ia is None or ib is None:
+        return False  # tak terparse & beda string: overlap tak bisa dipastikan
+    return ia[0] < ib[1] and ib[0] < ia[1]
+
+
+def _acak_penjadwalan(databases):
+    """Acak seluruh gen penjadwalan (sks, hari, waktu, ruangan)."""
+    return {
+        IDX_SKS: random.choice(databases['sks']),
+        IDX_HARI: random.choice(databases['hari']),
+        IDX_WAKTU: random.choice(databases['waktu']),
+        IDX_RUANGAN: random.choice(databases['ruangan']),
+    }
 
 
 # ========== CORE GA FUNCTIONS ==========
 
 def buat_populasi_list(populasi_dict, databases):
+    """
+    Bangun populasi awal dari dict penugasan {kode: [dosen, matkul, prodi]}.
+    Gen penjadwalan diinisialisasi acak - sesuai kaidah inisialisasi populasi GA.
+    """
     populasi_list = []
     for kode, data in populasi_dict.items():
+        acak = _acak_penjadwalan(databases)
         kromosom = {
             "kode": kode,
             "data": [
-                data[0],  # dosen
-                data[1],  # matkul
-                data[2],  # prodi
-                random.choice(databases['sks']),
-                random.choice(databases['hari']),
-                random.choice(databases['waktu']),
-                random.choice(databases['ruangan'])
+                data[0],          # dosen (kecocokan)
+                data[1],          # matkul (kecocokan)
+                data[2],          # prodi (kecocokan)
+                acak[IDX_SKS],
+                acak[IDX_HARI],
+                acak[IDX_WAKTU],
+                acak[IDX_RUANGAN],
             ],
             "generation": 0
         }
@@ -30,34 +137,50 @@ def buat_populasi_list(populasi_dict, databases):
     return populasi_list
 
 
-def hitung_konflik(krom, populasi):
-    """
-    Index: [dosen, matkul, prodi, sks, hari, waktu, ruangan]
-           [0,     1,      2,     3,   4,    5,     6]
-    """
-    konflik = 0
-    for other in populasi:
-        if krom["kode"] == other["kode"]:
-            continue
-        same_hari = krom["data"][4] == other["data"][4]
-        same_waktu = krom["data"][5] == other["data"][5]
-        if same_hari and same_waktu:
-            if krom["data"][6] == other["data"][6]:
-                konflik += 1
-            if krom["data"][0] == other["data"][0]:
-                konflik += 1
-    return konflik
-
-
-def fitness(konflik):
-    return round(1 / (1 + konflik), 4)
-
-
 def evaluasi_populasi(populasi):
+    """
+    Evaluasi fitness seluruh populasi secara komprehensif dan efisien.
+
+    Konflik dihitung antar pasangan kromosom yang BERBENTROK WAKTU: berada
+    pada hari yang sama DAN rentang waktunya tumpang tindih (overlap interval,
+    tidak harus string slot yang identik):
+      - Konflik ruangan: dua kelas menempati ruangan yang sama pada waktu
+        yang tumpang tindih.
+      - Konflik dosen  : dosen yang sama mengajar dua kelas yang waktunya
+        tumpang tindih.
+
+    Slot waktu yang tidak dapat di-parse (format bebas) diproses dengan
+    fallback kesetaraan string, sehingga evaluasi tetap berjalan.
+
+    Setiap pasangan hanya dihitung satu kali (i vs j > i), sehingga jumlah
+    konflik tidak digandakan.
+    """
+    n = len(populasi)
+
+    # Reset konflik
     for krom in populasi:
-        konflik = hitung_konflik(krom, populasi)
-        krom["konflik"] = konflik
-        krom["fitness"] = fitness(konflik)
+        krom["konflik"] = 0
+
+    for i in range(n):
+        a = populasi[i]
+        for j in range(i + 1, n):
+            b = populasi[j]
+            if a["data"][IDX_HARI] != b["data"][IDX_HARI]:
+                continue
+            if not waktu_bentrok(a["data"][IDX_WAKTU], b["data"][IDX_WAKTU]):
+                continue
+            # Waktu (hari + rentang) bentrok
+            if a["data"][IDX_RUANGAN] == b["data"][IDX_RUANGAN]:
+                a["konflik"] += 1
+                b["konflik"] += 1
+            if a["data"][IDX_DOSEN] == b["data"][IDX_DOSEN]:
+                a["konflik"] += 1
+                b["konflik"] += 1
+
+    # Fitness = 1 / (1 + konflik)  ->  1.0 berarti bebas konflik
+    for krom in populasi:
+        krom["fitness"] = round(1 / (1 + krom["konflik"]), 4)
+
     return populasi
 
 
@@ -67,104 +190,139 @@ def seleksi_tournament(populasi, tournament_size=3):
     return max(tournament, key=lambda x: x['fitness'])
 
 
-def crossover(parent1, parent2, gen_number):
-    cut_point = 3
-    offspring1 = {
+def crossover(parent1, parent2, gen_number, crossover_rate=0.8):
+    """
+    Crossover one-cut-point pada gen penjadwalan [3:7]:
+        - Gen kecocokan [0:3] (dosen, matkul, prodi) tetap diwarisi utuh dari
+          masing-masing parent agar penugasan tidak tercampur.
+        - Titik potong dipilih di dalam gen penjadwalan (indeks 4..6, yaitu di
+          antara [sks, hari, waktu, ruangan]) sehingga menghasilkan kombinasi
+          baru (misal hari+waktu dari P1 dengan ruangan dari P2, dan sebaliknya)
+          tanpa menyalin mentah seluruh slot P2 yang berisiko langsung bentrok
+          ruangan dengan P2 sendiri.
+    """
+    if random.random() > crossover_rate:
+        anak1 = {"kode": f"G{gen_number}_C{random.randint(100, 999)}",
+                 "data": list(parent1["data"]), "generation": gen_number}
+        anak2 = {"kode": f"G{gen_number}_C{random.randint(100, 999)}",
+                 "data": list(parent2["data"]), "generation": gen_number}
+        return [anak1, anak2]
+
+    cut_point = random.randint(4, 6)  # One-cut-point di dalam gen penjadwalan [3:7]
+    anak1 = {
         "kode": f"G{gen_number}_C{random.randint(100, 999)}",
-        "data": parent1["data"][:cut_point] + parent2["data"][cut_point:],
+        "data": parent1["data"][:3] + parent1["data"][3:cut_point] + parent2["data"][cut_point:],
         "generation": gen_number
     }
-    offspring2 = {
+    anak2 = {
         "kode": f"G{gen_number}_C{random.randint(100, 999)}",
-        "data": parent2["data"][:cut_point] + parent1["data"][cut_point:],
+        "data": parent2["data"][:3] + parent2["data"][3:cut_point] + parent1["data"][cut_point:],
         "generation": gen_number
     }
-    return [offspring1, offspring2]
+    return [anak1, anak2]
 
 
 def mutasi(kromosom, mutation_rate, databases):
-    if random.random() < mutation_rate:
-        gene_map = {3: 'sks', 4: 'hari', 5: 'waktu', 6: 'ruangan'}
-        gene_idx = random.choice([3, 4, 5, 6])
-        kromosom['data'][gene_idx] = random.choice(databases[gene_map[gene_idx]])
+    """
+    Mutasi per-gen (kaidah GA standar): setiap gen penjadwalan [3:7] diubah
+    secara acak dengan probabilitas mutation_rate. Gen kecocokan [0:3] tidak
+    disentuh agar penugasan (dosen-matkul-prodi) tetap terjaga.
+    """
+    for gene_idx, key in GENE_MAP.items():
+        if random.random() < mutation_rate:
+            kromosom['data'][gene_idx] = random.choice(databases[key])
     return kromosom
 
 
-def mutasi_kuat(kromosom, databases):
-    kromosom['data'][3] = random.choice(databases['sks'])
-    kromosom['data'][4] = random.choice(databases['hari'])
-    kromosom['data'][5] = random.choice(databases['waktu'])
-    kromosom['data'][6] = random.choice(databases['ruangan'])
-    return kromosom
-
-
-def elitism_replacement(old_pop, new_pop, elite_size):
-    sorted_old = sorted(old_pop, key=lambda x: x['fitness'], reverse=True)
-    elites = sorted_old[:elite_size]
-    combined = elites + new_pop
-    combined_sorted = sorted(combined, key=lambda x: x['fitness'], reverse=True)
-    return combined_sorted[:len(old_pop)]
-
-
-def create_immigrant(gen_number, populasi_data, databases):
-    keys = list(populasi_data.keys())
-    key = random.choice(keys)
-    base = populasi_data[key]
-    immigrant = {
-        'kode': f"G{gen_number}_IMM{random.randint(100, 999)}",
-        'data': [
-            base[0], base[1], base[2],
-            random.choice(databases['sks']),
-            random.choice(databases['hari']),
-            random.choice(databases['waktu']),
-            random.choice(databases['ruangan'])
-        ],
-        'generation': gen_number
-    }
-    return mutasi_kuat(immigrant, databases)
-
-
-def remove_duplicates(populasi):
+def hitung_konflik_individu(kromosom, populasi, abaikan_idx=None):
     """
-    FIX: Hapus duplikat berdasarkan (Dosen, Matkul, Prodi),
-    pertahankan yang fitness-nya tertinggi.
+    Hitung jumlah konflik satu kandidat kromosom terhadap seluruh anggota
+    populasi lainnya (kecuali indeks `abaikan_idx` / dirinya sendiri).
+    Digunakan untuk evaluasi kontekstual saat elitism replacement agar
+    penggantian individu dijamin tidak menambah konflik jadwal secara keseluruhan.
     """
-    unique_dict = {}
-    for krom in populasi:
-        sig = (krom['data'][0], krom['data'][1], krom['data'][2])
-        # Simpan yang fitness-nya lebih tinggi
-        if sig not in unique_dict or krom['fitness'] > unique_dict[sig]['fitness']:
-            unique_dict[sig] = krom
-    return list(unique_dict.values())
+    hari = kromosom["data"][IDX_HARI]
+    waktu = kromosom["data"][IDX_WAKTU]
+    ruangan = kromosom["data"][IDX_RUANGAN]
+    dosen = kromosom["data"][IDX_DOSEN]
+    konflik = 0
+
+    for idx, other in enumerate(populasi):
+        if idx == abaikan_idx or other is kromosom:
+            continue
+        if hari != other["data"][IDX_HARI]:
+            continue
+        if not waktu_bentrok(waktu, other["data"][IDX_WAKTU]):
+            continue
+        if ruangan == other["data"][IDX_RUANGAN]:
+            konflik += 1
+        if dosen == other["data"][IDX_DOSEN]:
+            konflik += 1
+
+    return konflik
 
 
-def fill_missing(populasi, populasi_data, databases, gen):
+def per_signature_replacement(old_pop, offspring, populasi_data, databases):
     """
-    FIX: Isi kembali kromosom yang hilang agar ukuran populasi
-    selalu sama dengan jumlah input.
+    Penggantian generasi dengan elitism kontekstual per penugasan (niche elitism):
+    untuk SETIAP penugasan input (dosen, matkul, prodi), kandidat anak dievaluasi
+    langsung terhadap konteks populasi jadwal saat ini.
+
+    Konsekuensinya:
+      - setiap penugasan input selalu punya tepat satu jadwal di hasil akhir;
+      - jadwal yang sudah bebas konflik (konflik == 0) dipertahankan;
+      - jadwal yang masih berkonflik hanya diganti oleh kandidat anak yang
+        menghasilkan konflik <= konflik saat ini terhadap sisa jadwal,
+        sehingga total konflik populasi dijamin monoton turun (tidak pernah memburuk).
     """
-    target_size = len(populasi_data)
-    existing_sigs = {(k['data'][0], k['data'][1], k['data'][2]) for k in populasi}
-    all_sigs = {(v[0], v[1], v[2]): k for k, v in populasi_data.items()}
+    # Kelompokkan kandidat anak berdasarkan signature (dosen, matkul, prodi)
+    kandidat_per_sig = {}
+    for child in offspring:
+        sig = (child['data'][IDX_DOSEN], child['data'][IDX_MATKUL], child['data'][IDX_PRODI])
+        kandidat_per_sig.setdefault(sig, []).append(child)
 
-    for sig, key in all_sigs.items():
-        if sig not in existing_sigs:
-            data = populasi_data[key]
-            filler = {
-                'kode': f"G{gen}_FILL{random.randint(100, 999)}",
-                'data': [
-                    data[0], data[1], data[2],
-                    random.choice(databases['sks']),
-                    random.choice(databases['hari']),
-                    random.choice(databases['waktu']),
-                    random.choice(databases['ruangan'])
-                ],
-                'generation': gen
-            }
-            populasi.append(filler)
-            existing_sigs.add(sig)
+    # Susun populasi dasar dari old_pop sesuai urutan populasi_data
+    old_by_sig = {}
+    for krom in old_pop:
+        sig = (krom['data'][IDX_DOSEN], krom['data'][IDX_MATKUL], krom['data'][IDX_PRODI])
+        if sig not in old_by_sig or krom.get('fitness', 0) > old_by_sig[sig].get('fitness', 0):
+            old_by_sig[sig] = krom
 
-    return populasi[:target_size]
+    populasi_baru = []
+    for key, data in populasi_data.items():
+        sig = (data[0], data[1], data[2])
+        if sig in old_by_sig:
+            populasi_baru.append(old_by_sig[sig])
+        else:
+            acak = _acak_penjadwalan(databases)
+            populasi_baru.append({
+                'kode': key,
+                'data': [data[0], data[1], data[2],
+                         acak[IDX_SKS], acak[IDX_HARI], acak[IDX_WAKTU], acak[IDX_RUANGAN]],
+                'generation': 0
+            })
+
+    # Evaluasi kontekstual: perbaiki kromosom yang masih memiliki konflik
+    for idx, cur in enumerate(populasi_baru):
+        c_lama = hitung_konflik_individu(cur, populasi_baru, abaikan_idx=idx)
+        if c_lama == 0:
+            continue  # Sudah bebas konflik di konteks jadwal saat ini
+
+        sig = (cur['data'][IDX_DOSEN], cur['data'][IDX_MATKUL], cur['data'][IDX_PRODI])
+        best_cand = cur
+        best_c = c_lama
+
+        for cand in kandidat_per_sig.get(sig, []):
+            c_baru = hitung_konflik_individu(cand, populasi_baru, abaikan_idx=idx)
+            if c_baru <= best_c:
+                best_cand = cand
+                best_c = c_baru
+                if best_c == 0:
+                    break
+
+        populasi_baru[idx] = best_cand
+
+    return evaluasi_populasi(populasi_baru)
 
 
 # ========== MAIN GA FUNCTION ==========
@@ -172,99 +330,114 @@ def fill_missing(populasi, populasi_data, databases, gen):
 def run_genetic_algorithm(populasi_data, databases,
                           generations=10,
                           mutation_rate=0.15,
-                          elite_size=2,
-                          early_stopping=False):
+                          crossover_rate=0.8,
+                          early_stopping=False,
+                          patience=5,
+                          seed=None,
+                          progress_callback=None):
+    """
+    Jalankan siklus lengkap algoritma genetika.
 
-    # ========== INITIALIZATION ==========
-    populasi = buat_populasi_list(populasi_data, databases)
-    populasi = evaluasi_populasi(populasi)
-    populasi_awal = copy.deepcopy(populasi)
+    Args:
+        populasi_data     : dict {kode: [dosen, matkul, prodi]} penugasan input.
+        databases         : dict nilai untuk gen sks/hari/waktu/ruangan.
+        generations       : jumlah generasi maksimum.
+        mutation_rate     : probabilitas mutasi per gen (0..1).
+        crossover_rate    : probabilitas rekombinasi (0..1).
+        early_stopping    : aktifkan penghentian dini.
+        patience          : berhenti setelah N generasi tanpa perbaikan.
+        seed              : seed RNG opsional untuk reproduksibilitas.
+        progress_callback : fungsi fn(generasi, total) untuk update progress UI.
+
+    Returns:
+        dict hasil lengkap: populasi awal/akhir, solusi terbaik, history, dll.
+    """
+    if seed is not None:
+        random.seed(seed)
+
+    target_size = len(populasi_data)
+    if target_size < 2:
+        raise ValueError("Minimal 2 kromosom diperlukan untuk menjalankan GA.")
+
+    # ========== INISIALISASI (GENERASI 0) ==========
+    populasi = evaluasi_populasi(buat_populasi_list(populasi_data, databases))
+    populasi_awal = [dict(k, data=list(k['data'])) for k in populasi]
 
     history = {
-        'best_fitness': [],
-        'avg_fitness': [],
-        'worst_fitness': [],
-        'best_konflik': [],
-        'generations': []
+        'best_fitness': [], 'avg_fitness': [], 'worst_fitness': [],
+        'best_konflik': [], 'total_konflik': [], 'generations': []
     }
 
-    # ========== EVOLUTION ==========
+    def _catat_history(pop, gen_idx):
+        fitness_vals = [k['fitness'] for k in pop]
+        konflik_vals = [k['konflik'] for k in pop]
+        history['best_fitness'].append(round(max(fitness_vals), 4))
+        history['avg_fitness'].append(round(sum(fitness_vals) / len(fitness_vals), 4))
+        history['worst_fitness'].append(round(min(fitness_vals), 4))
+        history['best_konflik'].append(min(konflik_vals))
+        history['total_konflik'].append(sum(konflik_vals))
+        history['generations'].append(gen_idx)
+
+    # Catat kondisi awal (Generasi 0) agar grafik & metrik awal akurat
+    _catat_history(populasi_awal, 0)
+
+    best_total_so_far = history['total_konflik'][0]
+    stagnant = 0
+    gen = 0
+
+    # ========== EVOLUSI ==========
     for gen in range(1, generations + 1):
-        target_size = len(populasi_data)  # FIX: selalu pakai ukuran input, bukan len(populasi)
+        if progress_callback is not None:
+            progress_callback(gen, generations)
+
+        # 1) Seleksi + Crossover + Mutasi
+        # Setiap penugasan di populasi (parent1) dipasangkan dengan parent2
+        # berbeda hasil seleksi turnamen, lalu direkombinasi (crossover_rate)
+        # dan dimutasi per-gen sesuai mutation_rate pilihan pengguna.
         offspring = []
+        for parent1 in populasi:
+            kandidat_mate = [k for k in populasi if k is not parent1] or populasi
+            parent2 = seleksi_tournament(kandidat_mate, tournament_size=3)
+            anak_pair = crossover(parent1, parent2, gen, crossover_rate)
 
-        # ===== CROSSOVER =====
-        while len(offspring) < target_size:
-            parent1 = seleksi_tournament(populasi, tournament_size=3)
-            parent2 = seleksi_tournament(populasi, tournament_size=3)
-            children = crossover(parent1, parent2, gen)
-            for child in children:
+            for child in anak_pair:
+                mutasi(child, mutation_rate, databases)
                 offspring.append(child)
-                if len(offspring) >= target_size:
-                    break
 
-        offspring = offspring[:target_size]
+        # 2) Evaluasi & penggantian generasi kontekstual (elitism per penugasan)
+        populasi = per_signature_replacement(populasi, offspring, populasi_data, databases)
 
-        # ===== MUTATION =====
-        current_rate = mutation_rate * (1.5 if gen <= 3 else 1.0)
-        for child in offspring:
-            mutasi(child, current_rate, databases)
+        # 3) Catat statistik generasi
+        _catat_history(populasi, gen)
+        total_konflik = history['total_konflik'][-1]
 
-        # ===== EVALUATION =====
-        offspring = evaluasi_populasi(offspring)
+        # 4) Early stopping berbasis total konflik jadwal
+        if total_konflik < best_total_so_far:
+            best_total_so_far = total_konflik
+            stagnant = 0
+        else:
+            stagnant += 1
 
-        # ===== REMOVE DUPLICATES =====
-        # FIX: hapus duplikat, pertahankan yang terbaik per (dosen,matkul,prodi)
-        offspring = remove_duplicates(offspring)
-
-        # ===== FILL MISSING =====
-        # FIX: isi yang hilang agar kembali ke target_size
-        offspring = fill_missing(offspring, populasi_data, databases, gen)
-        offspring = evaluasi_populasi(offspring)
-
-        # ===== ELITISM REPLACEMENT =====
-        populasi = elitism_replacement(populasi, offspring, elite_size)
-
-        # FIX: setelah elitism, hapus duplikat lagi (elite bisa bawa duplikat)
-        # dan fill kembali ke target_size
-        populasi = remove_duplicates(populasi)
-        populasi = fill_missing(populasi, populasi_data, databases, gen)
-        populasi = evaluasi_populasi(populasi)
-
-        # ===== TRACKING =====
-        fitness_values = [k['fitness'] for k in populasi]
-        konflik_values = [k['konflik'] for k in populasi]
-
-        best_fitness = max(fitness_values)
-        avg_fitness = sum(fitness_values) / len(fitness_values)
-        worst_fitness = min(fitness_values)
-        best_konflik = min(konflik_values)
-
-        history['best_fitness'].append(round(best_fitness, 4))
-        history['avg_fitness'].append(round(avg_fitness, 4))
-        history['worst_fitness'].append(round(worst_fitness, 4))
-        history['best_konflik'].append(best_konflik)
-        history['generations'].append(gen)
-
-        print(f"Gen {gen}: Best Fitness={best_fitness:.4f}, Avg Fitness={avg_fitness:.4f}, Konflik={best_konflik}, Size={len(populasi)}")
-
-        # ===== EARLY STOPPING =====
         if early_stopping:
-            MIN_GENERATIONS = 5
-            if gen >= MIN_GENERATIONS and best_fitness >= 0.99 and best_konflik == 0:
-                print(f"✓ Optimal solution found at generation {gen} (early stopping)!")
+            if total_konflik == 0:  # seluruh jadwal bebas konflik (optimal sejati)
+                break
+            if gen >= 5 and stagnant >= patience:
                 break
 
-    # ========== FINALIZATION ==========
+    # ========== FINALISASI ==========
     best_solution = max(populasi, key=lambda x: x['fitness'])
     best_initial = max(populasi_awal, key=lambda x: x['fitness'])
+    total_konflik_awal = history['total_konflik'][0]
+    total_konflik_akhir = history['total_konflik'][-1]
+    avg_fitness_awal = history['avg_fitness'][0]
+    avg_fitness_akhir = history['avg_fitness'][-1]
 
     improvement = {
-        'fitness_improvement': round(best_solution['fitness'] - best_initial['fitness'], 4),
-        'konflik_reduction': best_initial['konflik'] - best_solution['konflik'],
+        'fitness_improvement': round(avg_fitness_akhir - avg_fitness_awal, 4),
+        'konflik_reduction': total_konflik_awal - total_konflik_akhir,
         'improvement_percentage': round(
-            ((best_solution['fitness'] - best_initial['fitness']) / best_initial['fitness']) * 100, 2
-        ) if best_initial['fitness'] > 0 else 0
+            ((avg_fitness_akhir - avg_fitness_awal) / avg_fitness_awal) * 100, 2
+        ) if avg_fitness_awal > 0 else 0
     }
 
     return {
@@ -278,9 +451,11 @@ def run_genetic_algorithm(populasi_data, databases,
         'parameters': {
             'generations': generations,
             'mutation_rate': mutation_rate,
-            'elite_size': elite_size,
-            'population_size': len(populasi),
-            'early_stopping': early_stopping
+            'crossover_rate': crossover_rate,
+            'population_size': target_size,
+            'early_stopping': early_stopping,
+            'patience': patience,
+            'seed': seed
         }
     }
 
@@ -289,123 +464,59 @@ def run_genetic_algorithm(populasi_data, databases,
 
 def get_summary_stats(results):
     history = results['history']
+    initial_avg = history['avg_fitness'][0]
+    final_avg = history['avg_fitness'][-1]
     return {
-        'initial_best_fitness': history['best_fitness'][0],
-        'final_best_fitness': history['best_fitness'][-1],
-        'initial_avg_fitness': history['avg_fitness'][0],
-        'final_avg_fitness': history['avg_fitness'][-1],
-        'initial_konflik': history['best_konflik'][0],
-        'final_konflik': history['best_konflik'][-1],
+        'initial_best_fitness': initial_avg,
+        'final_best_fitness': final_avg,
+        'initial_avg_fitness': initial_avg,
+        'final_avg_fitness': final_avg,
+        'initial_konflik': history['total_konflik'][0],
+        'final_konflik': history['total_konflik'][-1],
         'total_generations': results['total_generations'],
-        'fitness_improvement': round(
-            history['best_fitness'][-1] - history['best_fitness'][0], 4
-        ),
-        'reached_optimal': history['best_konflik'][-1] == 0
+        'fitness_improvement': round(final_avg - initial_avg, 4),
+        'reached_optimal': history['total_konflik'][-1] == 0
     }
 
 
 def format_kromosom_detail(kromosom):
+    """Bentuk satu kromosom menjadi dict siap-tabel untuk UI."""
     return {
         'Kode': kromosom['kode'],
-        'Dosen': kromosom['data'][0],
-        'Mata Kuliah': kromosom['data'][1],
-        'Prodi': kromosom['data'][2],
-        'SKS': kromosom['data'][3],
-        'Hari': kromosom['data'][4],
-        'Waktu': kromosom['data'][5],
-        'Ruangan': kromosom['data'][6],
+        'Dosen': kromosom['data'][IDX_DOSEN],
+        'Mata Kuliah': kromosom['data'][IDX_MATKUL],
+        'Prodi': kromosom['data'][IDX_PRODI],
+        'SKS': kromosom['data'][IDX_SKS],
+        'Hari': kromosom['data'][IDX_HARI],
+        'Waktu': kromosom['data'][IDX_WAKTU],
+        'Ruangan': kromosom['data'][IDX_RUANGAN],
         'Fitness': kromosom['fitness'],
         'Konflik': kromosom['konflik'],
         'Generasi': kromosom.get('generation', 0)
     }
 
 
-def filter_unique_dosen_matkul_prodi(populasi):
-    unique_dict = {}
-    for krom in populasi:
-        key = (krom['data'][0], krom['data'][1], krom['data'][2])
-        if key not in unique_dict or krom['fitness'] > unique_dict[key]['fitness']:
-            unique_dict[key] = krom
-    return list(unique_dict.values())
-
-
 def buat_tabel_rekomendasi_jadwal(results):
-    """
-    FIX: Langsung pakai populasi_akhir tanpa filter tambahan.
-    Populasi akhir sudah dijamin = jumlah input dari dalam GA.
-    """
+    """Susun populasi akhir menjadi tabel rekomendasi jadwal terurut."""
     populasi_akhir = results['populasi_akhir']
-    populasi_sorted = sorted(populasi_akhir, key=lambda x: (x['data'][0], x['data'][1]))
+    populasi_sorted = sorted(
+        populasi_akhir,
+        key=lambda x: (x['data'][IDX_DOSEN], x['data'][IDX_MATKUL])
+    )
 
     tabel_rekomendasi = []
     for idx, krom in enumerate(populasi_sorted, 1):
-        rekomendasi = {
+        tabel_rekomendasi.append({
             'No': idx,
-            'Dosen': krom['data'][0],
-            'Mata Kuliah': krom['data'][1],
-            'Prodi': krom['data'][2],
-            'SKS': krom['data'][3],
-            'Hari': krom['data'][4],
-            'Waktu': krom['data'][5],
-            'Ruangan': krom['data'][6],
+            'Dosen': krom['data'][IDX_DOSEN],
+            'Mata Kuliah': krom['data'][IDX_MATKUL],
+            'Prodi': krom['data'][IDX_PRODI],
+            'SKS': krom['data'][IDX_SKS],
+            'Hari': krom['data'][IDX_HARI],
+            'Waktu': krom['data'][IDX_WAKTU],
+            'Ruangan': krom['data'][IDX_RUANGAN],
             'Fitness': krom['fitness'],
             'Konflik': krom['konflik']
-        }
-        tabel_rekomendasi.append(rekomendasi)
+        })
 
     return tabel_rekomendasi
-
-
-def export_hasil_ga_ke_csv(results, output_file, filter_duplicates=True):
-    populasi_akhir = results['populasi_akhir']
-    if filter_duplicates:
-        populasi_filtered = filter_unique_dosen_matkul_prodi(populasi_akhir)
-    else:
-        populasi_filtered = populasi_akhir
-    populasi_sorted = sorted(populasi_filtered, key=lambda x: x['data'][0])
-
-    with open(output_file, 'w', newline='', encoding='utf-8') as f:
-        fieldnames = ['Kode', 'Dosen', 'Mata Kuliah', 'Prodi', 'SKS',
-                      'Hari', 'Waktu', 'Ruangan', 'Fitness', 'Konflik', 'Generasi']
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        for krom in populasi_sorted:
-            writer.writerow({
-                'Kode': krom['kode'],
-                'Dosen': krom['data'][0],
-                'Mata Kuliah': krom['data'][1],
-                'Prodi': krom['data'][2],
-                'SKS': krom['data'][3],
-                'Hari': krom['data'][4],
-                'Waktu': krom['data'][5],
-                'Ruangan': krom['data'][6],
-                'Fitness': krom['fitness'],
-                'Konflik': krom['konflik'],
-                'Generasi': krom.get('generation', 0)
-            })
-
-    print(f"\n✓ Results exported to: {output_file}")
-    print(f"  → Total schedules: {len(populasi_sorted)}")
-    return populasi_filtered
-
-
-# ========== PARSE INPUT ==========
-
-def parse_csv_input(csv_file):
-    populasi_dict = {}
-    databases = {
-        'sks': ['2', '3', '4'],
-        'hari': ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'],
-        'waktu': ['07:00-09:00', '09:00-11:00', '11:00-13:00', '13:00-15:00', '15:00-17:00'],
-        'ruangan': ['R101', 'R102', 'R103', 'R201', 'R202', 'R203', 'Lab1', 'Lab2']
-    }
-    with open(csv_file, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        for idx, row in enumerate(reader):
-            kode = f"C{idx+1}"
-            populasi_dict[kode] = [
-                row['Dosen'].strip(),
-                row['Mata Kuliah'].strip(),
-                row['Prodi'].strip()
-            ]
-    return populasi_dict, databases

@@ -25,12 +25,15 @@ def load_databases():
         df_kromosom = pd.read_excel(KROMOSOM_PATH)
         df_databases = pd.read_excel(DATABASE_PATH)
         
-        # Ambil data unik dari Databases.xlsx
+        # Ambil data unik dari Databases.xlsx.
+        # Simpan NILAI MENTAH (tanpa prefix "1 - Nama") agar perbandingan
+        # konflik dosen antar-kromosom konsisten, apapun sumber input-nya
+        # (form sidebar atau upload Excel).
         data = {}
         for key, col_index in COLUMN_MAPPING.items():
             if len(df_databases.columns) > col_index:
                 unique_values = df_databases.iloc[:, col_index].dropna().unique().tolist()
-                data[key] = [f"{i+1} - {str(val)}" for i, val in enumerate(unique_values)]
+                data[key] = [str(val).strip() for val in unique_values]
             else:
                 data[key] = ['Data kosong']
         

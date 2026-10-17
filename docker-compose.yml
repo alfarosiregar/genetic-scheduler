@@ -1,0 +1,9 @@
+services:
+  genetic-scheduler:
+    build: .
+    container_name: genetic-scheduler-app
+    restart: unless-stopped
+    ports:
+      - "8502:8502"
+    volumes:
+      - .:/app

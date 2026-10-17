@@ -1,432 +1,452 @@
 """
-Page 3: Hasil dan Analisis Lengkap
+Page 3: Hasil Optimasi, Kalender Mingguan, dan Analisis Lengkap
 """
-import streamlit as st
-import pandas as pd
+from io import BytesIO
 import altair as alt
-from components.header import apply_custom_css, display_image_on_results
+import pandas as pd
+import streamlit as st
+from config.settings import RESULT_IMAGE_PATH
+from components.header import render_page_hero, render_footer
 from utils.genetic_algorithm import (
-    get_summary_stats, 
+    get_summary_stats,
     format_kromosom_detail,
-    buat_tabel_rekomendasi_jadwal
+    buat_tabel_rekomendasi_jadwal,
+    parse_waktu,
 )
 
 # ========== PAGE CONFIG ==========
 st.set_page_config(
     page_title="Results - Genetic Scheduler",
     page_icon="📈",
-    layout="wide"
+    layout="wide",
 )
 
-# ========== CUSTOM CSS ==========
-st.markdown("""
-<style>
-    .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 20px;
-        border-radius: 10px;
-        color: white;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-    }
-    .metric-card h3 {
-        margin: 0;
-        font-size: 24px;
-    }
-    .metric-card p {
-        margin: 10px 0 0 0;
-        font-size: 16px;
-    }
-    .success-banner {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-        padding: 15px;
-        border-radius: 8px;
-        color: white;
-        text-align: center;
-        font-size: 18px;
-        font-weight: bold;
-        margin: 20px 0;
-    }
-    .recommendation-table {
-        background-color: white;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# ========== TITLE ==========
-st.title("📈 Hasil dan Analisis Lengkap")
-st.markdown("Analisis detail hasil optimasi Algoritma Genetika")
-display_image_on_results()
-st.markdown("""---""")
+# Hero Banner & Stepper
+render_page_hero(
+    title="Hasil Optimasi & Kalender Jadwal Perkuliahan",
+    subtitle=(
+        "Eksplorasi jadwal hasil optimasi Algoritma Genetika dalam bentuk Tabel Rekomendasi Interaktif, "
+        "Matriks Kalender Mingguan (Senin–Jumat), Grafik Konvergensi, dan Unduh Laporan Excel/CSV."
+    ),
+    badge="📈 Tahap 3 · Analitik & Jadwal Final",
+    image_path=RESULT_IMAGE_PATH,
+    active_step=3,
+)
 
 # ========== CHECK IF RESULTS EXIST ==========
-if "ga_results" not in st.session_state:
-    st.warning("⚠️ Belum ada hasil algoritma!")
-    st.info("➡️ Silakan jalankan algoritma di halaman **Run Algorithm** terlebih dahulu.")
+if "ga_results" not in st.session_state or st.session_state.ga_results is None:
+    st.markdown(
+        """
+        <div style="background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; padding: 9px 14px; border-radius: 10px; font-size: 0.82rem; margin-bottom: 10px;">
+            ⚠️ Belum ada hasil optimasi Algoritma Genetika yang tersimpan.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    c1, c2 = st.columns([3.2, 1])
+    with c1:
+        st.markdown(
+            """
+            <div style="background: #EFF6FF; border: 1px solid #BFDBFE; color: #1E40AF; padding: 9px 14px; border-radius: 10px; font-size: 0.82rem;">
+                💡 Silakan jalankan proses optimasi di halaman <strong>Run Algorithm</strong> terlebih dahulu.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with c2:
+        if st.button("🧬 Buka Run Algorithm", type="primary", width="stretch"):
+            st.switch_page("pages/2_🧬_Run_Algorithm.py")
+    render_footer("Results")
     st.stop()
 
 # ========== LOAD RESULTS ==========
 results = st.session_state.ga_results
 stats = get_summary_stats(results)
-
-# ========== EXECUTIVE SUMMARY ==========
-st.markdown("### 🎯 Ringkasan")
-
-col1, col2, col3, col4, col5 = st.columns(5)
-
-with col1:
-    st.metric(
-        "Total Generasi", 
-        results['total_generations'],
-        help="Jumlah iterasi evolusi yang dijalankan"
-    )
-
-with col2:
-    fitness_improvement = float(stats['fitness_improvement'])
-    st.metric(
-        "Fitness Akhir", 
-        f"{stats['final_best_fitness']:.4f}",
-        delta=f"+{fitness_improvement:.4f}",
-        help="Fitness terbaik dari populasi akhir"
-    )
-
-with col3:
-    initial_konflik = int(stats['initial_konflik'])
-    final_konflik = int(stats['final_konflik'])
-    konflik_delta = initial_konflik - final_konflik
-    
-    st.metric(
-        "Konflik Akhir",
-        final_konflik,
-        delta=-konflik_delta,
-        delta_color="inverse",
-        help="Jumlah konflik jadwal pada solusi terbaik"
-    )
-
-with col4:
-    improvement_pct = float(results['improvement']['improvement_percentage'])
-    st.metric(
-        "Peningkatan", 
-        f"{improvement_pct}%",
-        help="Persentase peningkatan fitness dari awal"
-    )
-
-with col5:
-    status = "✅ OPTIMAL" if stats['reached_optimal'] else "⚠️ SUBOPTIMAL"
-    st.metric(
-        "Status", 
-        status,
-        help="Status hasil: Optimal = fitness 1.0 & konflik 0"
-    )
-
-# Success banner if optimal
-if stats['reached_optimal']:
-    st.markdown("""
-    <div class="success-banner">
-        🎉 SELAMAT! Algoritma berhasil menemukan solusi OPTIMAL tanpa konflik! 🎉
-    </div>
-    """, unsafe_allow_html=True)
-
-# ========== TABEL REKOMENDASI JADWAL ==========
-st.markdown("---")
-st.markdown("### 📋 Tabel Rekomendasi Jadwal")
-
-# Buat tabel rekomendasi
 tabel_rekomendasi = buat_tabel_rekomendasi_jadwal(results)
 df_rekomendasi = pd.DataFrame(tabel_rekomendasi)
 
-# Display metrics
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric(
-        "📊 Total Jadwal", 
-        len(df_rekomendasi),
-        help="Jumlah jadwal unik (tanpa duplikasi)"
+# ========== EXECUTIVE SUMMARY ==========
+if stats["reached_optimal"]:
+    st.markdown(
+        """
+        <div class="gs-banner-success" style="font-size: 0.88rem; padding: 14px 20px; white-space: nowrap; gap: 12px;">
+            <span>🎉 SEMPURNA! Seluruh jadwal perkuliahan telah OPTIMAL (0 Konflik · Fitness 1.0000) dan siap digunakan!</span>
+            <span style="flex-shrink: 0;">✅ READY FOR DEPLOYMENT</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
-
-with col2:
-    total_konflik_tabel = int(df_rekomendasi['Konflik'].sum())
-    st.metric(
-        "⚠️ Total Konflik", 
-        total_konflik_tabel,
-        help="Total konflik dalam tabel rekomendasi"
-    )
-
-with col3:
-    avg_fitness_tabel = float(df_rekomendasi['Fitness'].mean())
-    st.metric(
-        "📈 Avg Fitness", 
-        f"{avg_fitness_tabel:.4f}",
-        help="Rata-rata fitness jadwal"
-    )
-
-with col4:
-    jadwal_optimal = int((df_rekomendasi['Konflik'] == 0).sum())
-    st.metric(
-        "✅ Jadwal Optimal", 
-        jadwal_optimal,
-        help="Jumlah jadwal tanpa konflik"
-    )
-
-# Info box
-if total_konflik_tabel == 0:
-    st.success("✅ **SEMPURNA!** Semua jadwal tidak memiliki konflik.")
 else:
-    st.warning(f"⚠️ **Perhatian!** Masih ada {total_konflik_tabel} konflik dalam jadwal.")
+    st.markdown(
+        f"""
+        <div class="gs-banner-warn" style="font-size: 0.88rem; padding: 14px 20px; white-space: nowrap; gap: 12px;">
+            <span>⚠️ Jadwal Suboptimal: Masih terdapat {stats['final_konflik']} konflik yang perlu ditinjau atau dioptimasi ulang.</span>
+            <span style="flex-shrink: 0;">⚠️ PERLU EVALUASI</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-# Display table with custom styling
-st.markdown("<div class='recommendation-table'>", unsafe_allow_html=True)
+st.markdown('<div class="gs-section-title">🎯 Ringkasan Eksekutif</div>', unsafe_allow_html=True)
 
-# Highlight rows with conflicts
-def highlight_konflik(row):
-    if row['Konflik'] > 0:
-        return ['background-color: #ffcccc'] * len(row)  # Light red
-    elif row['Fitness'] >= 0.99:
-        return ['background-color: #ccffcc'] * len(row)  # Light green
-    return [''] * len(row)
+fitness_improvement = float(stats["fitness_improvement"])
+initial_konflik = int(stats["initial_konflik"])
+final_konflik = int(stats["final_konflik"])
+konf_diff = initial_konflik - final_konflik
+konf_delta_str = f"-{konf_diff} Konflik" if konf_diff > 0 else "0 Perubahan"
+improvement_pct = float(results["improvement"]["improvement_percentage"])
+jadwal_optimal = int((df_rekomendasi["Konflik"] == 0).sum())
+total_jadwal = len(df_rekomendasi)
 
-st.dataframe(
-    df_rekomendasi.style.apply(highlight_konflik, axis=1).format({
-        'Fitness': '{:.4f}'
-    }),
-    use_container_width=True,
-    height=400
+st.markdown(
+    f"""
+    <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; align-items: stretch; margin-bottom: 1.25rem;">
+        <div class="gs-card" style="padding: 14px 16px; border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
+            <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">🔄 Generasi Dijalankan</div>
+            <div style="font-size: 1.35rem; font-weight: 800; color: #0F172A; line-height: 1.2;">{results['total_generations']} Generasi</div>
+            <div style="font-size: 0.74rem; color: #64748B; margin-top: 6px;">Siklus Evolusi</div>
+        </div>
+        <div class="gs-card" style="padding: 14px 16px; border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
+            <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">🏆 Rata-Rata Fitness</div>
+            <div style="font-size: 1.35rem; font-weight: 800; color: #0F172A; line-height: 1.2;">{stats['final_best_fitness']:.4f}</div>
+            <div style="font-size: 0.74rem; font-weight: 600; color: #059669; margin-top: 6px;">▲ +{fitness_improvement:.4f}</div>
+        </div>
+        <div class="gs-card" style="padding: 14px 16px; border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
+            <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">⚡ Total Konflik Akhir</div>
+            <div style="font-size: 1.35rem; font-weight: 800; color: #0F172A; line-height: 1.2;">{final_konflik}</div>
+            <div style="font-size: 0.74rem; font-weight: 600; color: #059669; margin-top: 6px;">▼ {konf_delta_str}</div>
+        </div>
+        <div class="gs-card" style="padding: 14px 16px; border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
+            <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">📈 Peningkatan Kualitas</div>
+            <div style="font-size: 1.35rem; font-weight: 800; color: #0F172A; line-height: 1.2;">+{improvement_pct}%</div>
+            <div style="font-size: 0.74rem; color: #64748B; margin-top: 6px;">Dari Populasi Awal</div>
+        </div>
+        <div class="gs-card" style="padding: 14px 16px; border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
+            <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">✅ Kelas Bebas Bentrok</div>
+            <div style="font-size: 1.35rem; font-weight: 800; color: #0F172A; line-height: 1.2;">{jadwal_optimal}/{total_jadwal}</div>
+            <div style="font-size: 0.74rem; color: #64748B; margin-top: 6px;">Jadwal Teroptimasi</div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
-st.markdown("</div>", unsafe_allow_html=True)
-
-# Legend
-col1, col2 = st.columns(2)
-with col1:
-    st.markdown("🟢 **Hijau:** Jadwal optimal (fitness ≥ 0.99)")
-with col2:
-    st.markdown("🔴 **Merah:** Ada konflik yang perlu diselesaikan")
-
-# Detail view expander
-with st.expander("🔍 Lihat Detail per Jadwal"):
-    for idx, row in df_rekomendasi.iterrows():
-        st.markdown(f"### 📌 Jadwal #{row['No']}")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown("**📚 Informasi Dasar**")
-            st.write(f"**Dosen:** {row['Dosen']}")
-            st.write(f"**Mata Kuliah:** {row['Mata Kuliah']}")
-            st.write(f"**Prodi:** {row['Prodi']}")
-        
-        with col2:
-            st.markdown("**📅 Jadwal Perkuliahan**")
-            st.write(f"**SKS:** {row['SKS']}")
-            st.write(f"**Hari:** {row['Hari']}")
-            st.write(f"**Waktu:** {row['Waktu']}")
-            st.write(f"**Ruangan:** {row['Ruangan']}")
-        
-        with col3:
-            st.markdown("**📊 Metrik**")
-            st.write(f"**Fitness:** {row['Fitness']:.4f}")
-            st.write(f"**Konflik:** {row['Konflik']}")
-            
-            if row['Konflik'] == 0:
-                st.success("✅ Tidak ada konflik")
-            else:
-                st.error(f"❌ Ada {row['Konflik']} konflik")
-        
-        st.markdown("---")
-
-# ========== EVOLUTION VISUALIZATION ==========
-st.markdown("---")
-st.markdown("### 📊 Visualisasi Evolusi")
-
-tab1, tab2 = st.tabs(["📈 Fitness Evolution", "🎯 Konflik Progress"])
-
-with tab1:
-    st.markdown("**Evolusi Fitness per Generasi**")
-    
-    chart_data = pd.DataFrame({
-        'Generasi': results['history']['generations'],
-        'Best Fitness': results['history']['best_fitness'],
-        'Average Fitness': results['history']['avg_fitness']
-    })
-    
-    line_chart = alt.Chart(chart_data.melt('Generasi', var_name='Type', value_name='Fitness')).mark_line(
-        point=alt.OverlayMarkDef(filled=False, fill="white")
-    ).encode(
-        x=alt.X('Generasi:Q', title='Generasi', axis=alt.Axis(format='d')),
-        y=alt.Y('Fitness:Q', title='Fitness Score', scale=alt.Scale(domain=[0, 1.05])),
-        color=alt.Color('Type:N', 
-                       legend=alt.Legend(title="Tipe Fitness"),
-                       scale=alt.Scale(domain=['Best Fitness', 'Average Fitness'],
-                                     range=['#667eea', '#38ef7d'])),
-        strokeWidth=alt.value(3),
-        tooltip=[
-            alt.Tooltip('Generasi:Q', title='Generasi'),
-            alt.Tooltip('Type:N', title='Tipe'),
-            alt.Tooltip('Fitness:Q', title='Fitness', format='.4f')
-        ]
-    ).properties(
-        width=700,
-        height=400
-    ).interactive()
-    
-    st.altair_chart(line_chart, use_container_width=True)
-
-with tab2:
-    st.markdown("**Pengurangan Konflik per Generasi**")
-    
-    konflik_data = pd.DataFrame({
-        'Generasi': results['history']['generations'],
-        'Jumlah Konflik': results['history']['best_konflik']
-    })
-    
-    konflik_chart = alt.Chart(konflik_data).mark_area(
-        line={'color': 'darkred'},
-        color=alt.Gradient(
-            gradient='linear',
-            stops=[
-                alt.GradientStop(color='white', offset=0),
-                alt.GradientStop(color='red', offset=1)
-            ],
-            x1=1,
-            x2=1,
-            y1=1,
-            y2=0
-        )
-    ).encode(
-        x=alt.X('Generasi:Q', title='Generasi', axis=alt.Axis(format='d')),
-        y=alt.Y('Jumlah Konflik:Q', title='Jumlah Konflik'),
-        tooltip=[
-            alt.Tooltip('Generasi:Q', title='Generasi'),
-            alt.Tooltip('Jumlah Konflik:Q', title='Konflik')
-        ]
-    ).properties(
-        width=700,
-        height=400
-    ).interactive()
-    
-    st.altair_chart(konflik_chart, use_container_width=True)
-    
-    konflik_reduction = int(stats['initial_konflik'] - stats['final_konflik'])
-    if konflik_reduction > 0:
-        st.success(f"✅ Berhasil mengurangi {konflik_reduction} konflik!")
-    elif int(stats['final_konflik']) == 0:
-        st.success("✅ Tidak ada konflik sejak awal!")
-
-# ========== ADVANCED DATA (EXPANDER) ==========
-with st.expander("📊 Data Lanjutan: Progress & Populasi"):
-    
-    # Generation Progress Table
-    st.markdown("#### 📋 Progress per Generasi")
-    
-    progress_data = []
-    for i, gen in enumerate(results['history']['generations']):
-        progress_data.append({
-            'Generasi': gen,
-            'Best Fitness': results['history']['best_fitness'][i],
-            'Avg Fitness': results['history']['avg_fitness'][i],
-            'Worst Fitness': results['history']['worst_fitness'][i],
-            'Best Konflik': results['history']['best_konflik'][i],
-            'Improvement': results['history']['best_fitness'][i] - results['history']['best_fitness'][0] if i > 0 else 0
-        })
-    
-    df_progress = pd.DataFrame(progress_data)
-    
-    def highlight_best(row):
-        if row['Best Fitness'] == df_progress['Best Fitness'].max():
-            return ['background-color: #90EE90'] * len(row)
-        return [''] * len(row)
-    
-    st.dataframe(
-        df_progress.style.apply(highlight_best, axis=1).format({
-            'Best Fitness': '{:.4f}',
-            'Avg Fitness': '{:.4f}',
-            'Worst Fitness': '{:.4f}',
-            'Improvement': '{:.4f}'
-        }),
-        use_container_width=True
+# Build progress DataFrame for Tab 4 & Export
+progress_data = []
+for i, gen in enumerate(results["history"]["generations"]):
+    progress_data.append(
+        {
+            "Generasi": gen,
+            "Best Fitness": results["history"]["best_fitness"][i],
+            "Avg Fitness": results["history"]["avg_fitness"][i],
+            "Worst Fitness": results["history"]["worst_fitness"][i],
+            "Total Konflik": results["history"]["total_konflik"][i],
+            "Improvement": round(results["history"]["avg_fitness"][i] - results["history"]["avg_fitness"][0], 4)
+            if i > 0
+            else 0.0,
+        }
     )
-    
+df_progress = pd.DataFrame(progress_data)
+
+# ========== MULTI-VIEW EXPLORER TABS ==========
+tab_table, tab_calendar, tab_charts, tab_history = st.tabs(
+    [
+        "📋 Tabel Rekomendasi Jadwal",
+        "🗓️ Kalender Mingguan (Per Hari)",
+        "📈 Grafik Evolusi & Distribusi",
+        "🔍 Riwayat Generasi & Detail",
+    ]
+)
+
+# ----- TAB 1: TABEL REKOMENDASI INTERAKTIF -----
+with tab_table:
+    f1, f2, f3, f4 = st.columns([1.4, 1.1, 1.1, 1.2])
+    with f1:
+        q_search = st.text_input(
+            "🔍 Cari Dosen / Mata Kuliah / Ruangan",
+            placeholder="Ketik kata kunci pencarian...",
+        )
+    with f2:
+        hari_order = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
+        hari_avail = sorted(
+            df_rekomendasi["Hari"].unique().tolist(),
+            key=lambda h: hari_order.index(h) if h in hari_order else 99,
+        )
+        f_hari = st.multiselect("📅 Filter Hari", options=hari_avail, default=[])
+    with f3:
+        f_prodi = st.multiselect(
+            "🎓 Filter Prodi",
+            options=sorted(df_rekomendasi["Prodi"].unique().tolist()),
+            default=[],
+        )
+    with f4:
+        f_status = st.selectbox(
+            "🚦 Status Konflik",
+            options=["Semua Jadwal", "Hanya Optimal (0 Konflik)", "Hanya Berkonflik (> 0)"],
+        )
+
+    df_filtered = df_rekomendasi.copy()
+    if q_search.strip():
+        q = q_search.strip().lower()
+        df_filtered = df_filtered[
+            df_filtered["Dosen"].str.lower().str.contains(q)
+            | df_filtered["Mata Kuliah"].str.lower().str.contains(q)
+            | df_filtered["Ruangan"].astype(str).str.lower().str.contains(q)
+        ]
+    if f_hari:
+        df_filtered = df_filtered[df_filtered["Hari"].isin(f_hari)]
+    if f_prodi:
+        df_filtered = df_filtered[df_filtered["Prodi"].isin(f_prodi)]
+    if f_status == "Hanya Optimal (0 Konflik)":
+        df_filtered = df_filtered[df_filtered["Konflik"] == 0]
+    elif f_status == "Hanya Berkonflik (> 0)":
+        df_filtered = df_filtered[df_filtered["Konflik"] > 0]
+
+    def highlight_konflik(row):
+        if row["Konflik"] > 0:
+            return ["background-color: #FEE2E2; color: #991B1B; font-weight: 600;"] * len(row)
+        elif row["Fitness"] >= 0.99:
+            return ["background-color: #ECFDF5; color: #065F46;"] * len(row)
+        return [""] * len(row)
+
+    st.caption(f"Menampilkan **{len(df_filtered)}** dari total **{len(df_rekomendasi)}** jadwal perkuliahan.")
+    st.dataframe(
+        df_filtered.style.apply(highlight_konflik, axis=1).format({"Fitness": "{:.4f}"}),
+        width="stretch",
+        height=420,
+        hide_index=True,
+    )
+
+    leg1, leg2 = st.columns(2)
+    with leg1:
+        st.markdown("🟢 **Hijau Lembut:** Jadwal optimal bebas bentrok (`Konflik = 0`, `Fitness = 1.0000`)")
+    with leg2:
+        st.markdown("🔴 **Merah Lembut:** Jadwal memiliki bentrok waktu dengan ruangan atau dosen yang sama")
+
+# ----- TAB 2: MATRIKS KALENDER MINGGUAN -----
+with tab_calendar:
+    st.markdown(
+        "Visualisasi papan jadwal perkuliahan mingguan yang diurutkan secara kronologis berdasarkan **Hari** dan **Jam Mulai**."
+    )
+    cal_prodi = st.selectbox(
+        "🎓 Filter Kalender Berdasarkan Program Studi (Opsional):",
+        options=["Semua Program Studi"] + sorted(df_rekomendasi["Prodi"].unique().tolist()),
+    )
+
+    df_cal = df_rekomendasi.copy()
+    if cal_prodi != "Semua Program Studi":
+        df_cal = df_cal[df_cal["Prodi"] == cal_prodi]
+
+    df_cal["_sort_menit"] = df_cal["Waktu"].apply(lambda w: (parse_waktu(w) or (9999, 9999))[0])
+    hari_cols_list = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"]
+    extra_days = [h for h in df_cal["Hari"].unique() if h not in hari_cols_list]
+    all_days = hari_cols_list + extra_days
+
+    day_columns = st.columns(len(all_days))
+    for idx_d, nama_hari in enumerate(all_days):
+        with day_columns[idx_d]:
+            df_hari = df_cal[df_cal["Hari"] == nama_hari].sort_values("_sort_menit")
+            st.markdown(f"#### 📅 {nama_hari} ({len(df_hari)})")
+            if len(df_hari) == 0:
+                st.caption("Tidak ada kelas terjadwal.")
+            else:
+                for _, r in df_hari.iterrows():
+                    konflik_cls = "conflict" if r["Konflik"] > 0 else ""
+                    badge_konf = f" · ⚠️ {r['Konflik']} Konflik" if r["Konflik"] > 0 else ""
+                    st.markdown(
+                        f"""
+                        <div class="gs-slot-card {konflik_cls}">
+                            <div class="gs-slot-time">⏰ {r['Waktu']}{badge_konf}</div>
+                            <div class="gs-slot-course">{r['Mata Kuliah']}</div>
+                            <div class="gs-slot-meta">
+                                👨‍🏫 {r['Dosen']}<br>
+                                🏢 Ruang <strong>{r['Ruangan']}</strong> · 🎓 {r['Prodi']} ({r['SKS']} SKS)
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+# ----- TAB 3: GRAFIK EVOLUSI & DISTRIBUSI -----
+with tab_charts:
+    g_col1, g_col2 = st.columns(2)
+
+    with g_col1:
+        chart_data = pd.DataFrame(
+            {
+                "Generasi": results["history"]["generations"],
+                "Best Fitness": results["history"]["best_fitness"],
+                "Average Fitness": results["history"]["avg_fitness"],
+                "Worst Fitness": results["history"]["worst_fitness"],
+            }
+        )
+        line_chart = (
+            alt.Chart(chart_data.melt("Generasi", var_name="Tipe", value_name="Fitness"))
+            .mark_line(point=True, strokeWidth=3)
+            .encode(
+                x=alt.X("Generasi:Q", title="Generasi", axis=alt.Axis(tickMinStep=1, format="d")),
+                y=alt.Y("Fitness:Q", title="Skor Fitness", scale=alt.Scale(domain=[0, 1.05])),
+                color=alt.Color(
+                    "Tipe:N",
+                    legend=alt.Legend(title="Metrik Fitness"),
+                    scale=alt.Scale(
+                        domain=["Best Fitness", "Average Fitness", "Worst Fitness"],
+                        range=["#4F46E5", "#10B981", "#F59E0B"],
+                    ),
+                ),
+                tooltip=["Generasi:Q", "Tipe:N", alt.Tooltip("Fitness:Q", format=".4f")],
+            )
+            .properties(height=340, title="Evolusi Fitness (Best, Average, Worst)")
+            .interactive()
+        )
+        st.altair_chart(line_chart, width="stretch")
+
+    with g_col2:
+        konflik_data = pd.DataFrame(
+            {
+                "Generasi": results["history"]["generations"],
+                "Jumlah Konflik": results["history"]["total_konflik"],
+            }
+        )
+        konflik_chart = (
+            alt.Chart(konflik_data)
+            .mark_area(
+                line={"color": "#DC2626", "strokeWidth": 3},
+                point={"color": "#B91C1C", "size": 60},
+                color=alt.Gradient(
+                    gradient="linear",
+                    stops=[
+                        alt.GradientStop(color="rgba(239, 68, 68, 0.05)", offset=0),
+                        alt.GradientStop(color="rgba(239, 68, 68, 0.45)", offset=1),
+                    ],
+                    x1=1,
+                    x2=1,
+                    y1=1,
+                    y2=0,
+                ),
+            )
+            .encode(
+                x=alt.X("Generasi:Q", title="Generasi", axis=alt.Axis(tickMinStep=1, format="d")),
+                y=alt.Y("Jumlah Konflik:Q", title="Total Konflik Populasi"),
+                tooltip=["Generasi:Q", "Jumlah Konflik:Q"],
+            )
+            .properties(height=340, title="Penurunan Total Konflik per Generasi")
+            .interactive()
+        )
+        st.altair_chart(konflik_chart, width="stretch")
+
     st.markdown("---")
-    
-    # Detailed Comparison
-    st.markdown("#### 🔄 Perbandingan Populasi Awal vs Akhir")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("**🔴 Populasi Awal (Generasi 0)**")
-        df_awal = pd.DataFrame([
-            format_kromosom_detail(k) for k in results['populasi_awal']
-        ])
-        st.dataframe(df_awal[['Kode', 'Dosen', 'Mata Kuliah', 'Hari', 'Waktu', 'Fitness', 'Konflik']], use_container_width=True, height=300)
-    
-    with col2:
-        st.markdown(f"**🟢 Populasi Akhir (Generasi {results['total_generations']})**")
-        df_akhir = pd.DataFrame([
-            format_kromosom_detail(k) for k in results['populasi_akhir']
-        ])
-        st.dataframe(df_akhir[['Kode', 'Dosen', 'Mata Kuliah', 'Hari', 'Waktu', 'Fitness', 'Konflik']], use_container_width=True, height=300)
+    d_col1, d_col2 = st.columns(2)
+    with d_col1:
+        dist_hari = df_rekomendasi.groupby("Hari", as_index=False).size().rename(columns={"size": "Jumlah Kelas"})
+        bar_hari = (
+            alt.Chart(dist_hari)
+            .mark_bar(cornerRadiusTopLeft=6, cornerRadiusTopRight=6, color="#4F46E5")
+            .encode(
+                x=alt.X("Hari:N", sort=["Senin", "Selasa", "Rabu", "Kamis", "Jumat"], title="Hari Perkuliahan"),
+                y=alt.Y("Jumlah Kelas:Q", title="Jumlah Kelas Terjadwal"),
+                tooltip=["Hari:N", "Jumlah Kelas:Q"],
+            )
+            .properties(height=280, title="Distribusi Kepadatan Kelas per Hari")
+        )
+        st.altair_chart(bar_hari, width="stretch")
 
-# ========== RECOMMENDATIONS ==========
-st.markdown("---")
-st.markdown("### 💡 Rekomendasi")
+    with d_col2:
+        dist_prodi = df_rekomendasi.groupby("Prodi", as_index=False).size().rename(columns={"size": "Jumlah Kelas"})
+        bar_prodi = (
+            alt.Chart(dist_prodi)
+            .mark_bar(cornerRadiusTopLeft=6, cornerRadiusTopRight=6, color="#10B981")
+            .encode(
+                x=alt.X("Prodi:N", sort="-y", title="Program Studi"),
+                y=alt.Y("Jumlah Kelas:Q", title="Jumlah Kelas"),
+                tooltip=["Prodi:N", "Jumlah Kelas:Q"],
+            )
+            .properties(height=280, title="Distribusi Jadwal per Program Studi")
+        )
+        st.altair_chart(bar_prodi, width="stretch")
 
-if stats['reached_optimal']:
-    st.success("""
-    ✅ **Hasil Optimal Tercapai!**
-    
-    Algoritma telah menemukan solusi terbaik tanpa konflik. Jadwal ini siap digunakan!
-    """)
-else:
-    final_konflik_display = int(stats['final_konflik'])
-    current_gen = results['total_generations']
-    st.info(f"""
-    💡 **Tips untuk Meningkatkan Hasil:**
-    
-    - ✅ Tingkatkan **Jumlah Generasi** menjadi {current_gen * 2} atau lebih
-    - ✅ Coba **Mutation Rate** yang lebih tinggi (15-20%)
-    - ✅ Jalankan algoritma beberapa kali dan pilih hasil terbaik
-    
-    **Current Status:** Masih ada {final_konflik_display} konflik yang perlu diselesaikan.
-    """)
+# ----- TAB 4: RIWAYAT GENERASI & PERBANDINGAN POPULASI -----
+with tab_history:
+    st.markdown("#### 📋 Tabel Progres Evolusi per Generasi")
+
+    def highlight_best(row):
+        if row["Avg Fitness"] == df_progress["Avg Fitness"].max():
+            return ["background-color: #DCFCE7; color: #065F46; font-weight: 600;"] * len(row)
+        return [""] * len(row)
+
+    st.dataframe(
+        df_progress.style.apply(highlight_best, axis=1).format(
+            {
+                "Best Fitness": "{:.4f}",
+                "Avg Fitness": "{:.4f}",
+                "Worst Fitness": "{:.4f}",
+                "Improvement": "{:+.4f}",
+            }
+        ),
+        width="stretch",
+        hide_index=True,
+    )
+
+    st.markdown("---")
+    st.markdown("#### 🔄 Perbandingan Populasi Awal (Generasi 0) vs Populasi Akhir")
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        st.markdown("**🔴 Populasi Awal (Generasi 0 — Sebelum Optimasi)**")
+        df_awal = pd.DataFrame([format_kromosom_detail(k) for k in results["populasi_awal"]])
+        st.dataframe(
+            df_awal[["Kode", "Dosen", "Mata Kuliah", "Hari", "Waktu", "Ruangan", "Fitness", "Konflik"]],
+            width="stretch",
+            height=300,
+            hide_index=True,
+        )
+    with col_p2:
+        st.markdown(f"**🟢 Populasi Akhir (Generasi {results['total_generations']} — Sesudah Optimasi)**")
+        df_akhir = pd.DataFrame([format_kromosom_detail(k) for k in results["populasi_akhir"]])
+        st.dataframe(
+            df_akhir[["Kode", "Dosen", "Mata Kuliah", "Hari", "Waktu", "Ruangan", "Fitness", "Konflik"]],
+            width="stretch",
+            height=300,
+            hide_index=True,
+        )
 
 # ========== DOWNLOAD SECTION ==========
 st.markdown("---")
-st.markdown("### 💾 Download Hasil")
+st.markdown('<div class="gs-section-title">💾 Pusat Unduhan Laporan (Excel & CSV)</div>', unsafe_allow_html=True)
 
-col1, col2  = st.columns(2)
+dl_col1, dl_col2, dl_col3 = st.columns(3)
 
-with col1:
-    # Download tabel rekomendasi
-    tabel_csv = df_rekomendasi.to_csv(index=False).encode('utf-8')
+with dl_col1:
+    excel_buf = BytesIO()
+    with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
+        df_rekomendasi.to_excel(writer, index=False, sheet_name="Jadwal_Rekomendasi")
+        df_progress.to_excel(writer, index=False, sheet_name="Riwayat_Evolusi")
     st.download_button(
-        label="📥 Download Tabel Rekomendasi",
+        label="📗 Download Laporan Lengkap (.xlsx)",
+        data=excel_buf.getvalue(),
+        file_name="laporan_jadwal_optimal.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        type="primary",
+        width="stretch",
+    )
+
+with dl_col2:
+    tabel_csv = df_rekomendasi.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="📥 Download Tabel Rekomendasi (.csv)",
         data=tabel_csv,
         file_name="tabel_rekomendasi_jadwal.csv",
         mime="text/csv",
-        use_container_width=True,
-        help="Download tabel rekomendasi dalam format CSV"
+        width="stretch",
     )
-with col2:
-    # Download progress history
-    progress_csv = df_progress.to_csv(index=False).encode('utf-8')
+
+with dl_col3:
+    progress_csv = df_progress.to_csv(index=False).encode("utf-8")
     st.download_button(
-        label="📥 Download Progress History",
+        label="📊 Download Riwayat Evolusi (.csv)",
         data=progress_csv,
         file_name="evolution_progress.csv",
         mime="text/csv",
-        use_container_width=True,
-        help="Download riwayat evolusi per generasi"
+        width="stretch",
     )
 
-# ========== FOOTER ==========
-st.markdown("---")
-st.markdown("""
-<div style="text-align: center; color: #666; padding: 20px;">
-    <p>📊 Genetic Scheduler - Results</p>
-</div>
-""", unsafe_allow_html=True)
+render_footer("Results")

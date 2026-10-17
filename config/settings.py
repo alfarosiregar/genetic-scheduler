@@ -1,13 +1,16 @@
 """Konfigurasi aplikasi"""
+from pathlib import Path
 
-# Path files
-DATABASE_PATH = 'mnt/db/Databases.xlsx'
-KROMOSOM_PATH = 'mnt/db/Kromosom.xlsx'
-APP_IMAGE_PATH = 'mnt/img/schedule_image.jpg'
-INPUT_IMAGE_PATH = 'mnt/img/input_page_image.jpg'
-RUN_IMAGE_PATH = 'mnt/img/run_page_image.jpg'
-RESULT_IMAGE_PATH = 'mnt/img/result_page_image.jpg'
-SETTING_IMAGE_PATH = 'mnt/img/settings_page_image.jpg'
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Path files (relatif terhadap root folder genetic-scheduler, aman dijalankan dari CWD mana pun)
+DATABASE_PATH = str(BASE_DIR / 'mnt' / 'db' / 'Databases.xlsx')
+KROMOSOM_PATH = str(BASE_DIR / 'mnt' / 'db' / 'Kromosom.xlsx')
+APP_IMAGE_PATH = str(BASE_DIR / 'mnt' / 'img' / 'schedule_image.jpg')
+INPUT_IMAGE_PATH = str(BASE_DIR / 'mnt' / 'img' / 'input_page_image.jpg')
+RUN_IMAGE_PATH = str(BASE_DIR / 'mnt' / 'img' / 'run_page_image.jpg')
+RESULT_IMAGE_PATH = str(BASE_DIR / 'mnt' / 'img' / 'result_page_image.jpg')
+SETTING_IMAGE_PATH = str(BASE_DIR / 'mnt' / 'img' / 'settings_page_image.jpg')
 
 # Kolom mapping untuk Databases.xlsx
 COLUMN_MAPPING = {
