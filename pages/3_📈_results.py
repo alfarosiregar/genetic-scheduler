@@ -60,6 +60,7 @@ if "ga_results" not in st.session_state or st.session_state.ga_results is None:
             unsafe_allow_html=True,
         )
     with c2:
+        st.markdown('<div class="gs-mobile-spacer"></div>', unsafe_allow_html=True)
         if st.button("🧬 Buka Run Algorithm", type="primary", width="stretch"):
             st.switch_page("pages/2_🧬_run_algorithm.py")
     render_footer("Results")

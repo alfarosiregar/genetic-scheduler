@@ -368,12 +368,14 @@
 
   <!-- Footer -->
   <footer class="bg-white border-t border-slate-200/80 py-6">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-      <div class="flex items-center gap-1.5">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-center md:justify-between text-center md:text-left gap-3 md:gap-4 text-xs text-slate-500">
+      <div class="flex flex-col md:flex-row items-center justify-center md:justify-start gap-1 md:gap-1.5">
         <span class="text-base leading-none select-none" aria-hidden="true">🧬</span>
-        <span><strong class="font-semibold text-slate-800">Genetic Scheduler</strong> · Aplikasi Penyusunan Jadwal Perkuliahan Otomatis</span>
+        <strong class="font-semibold text-slate-800">Genetic Scheduler</strong>
+        <span class="hidden md:inline" aria-hidden="true">·</span>
+        <span>Aplikasi Penyusunan Jadwal Perkuliahan Otomatis</span>
       </div>
-      <div class="flex flex-wrap items-center gap-5">
+      <div class="flex flex-wrap items-center justify-center md:justify-end gap-5">
         <a data-dashboard-route="beranda" href="/beranda" class="hover:text-slate-900 transition-colors cursor-pointer">Beranda</a>
         <a data-dashboard-route="input_data" href="/input_data" class="hover:text-slate-900 transition-colors cursor-pointer">Input Data</a>
         <a data-dashboard-route="run_algorithm" href="/run_algorithm" class="hover:text-slate-900 transition-colors cursor-pointer">Susun Jadwal</a>

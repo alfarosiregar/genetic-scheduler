@@ -527,6 +527,16 @@ def apply_custom_css():
                 color: #64748B;
                 font-size: 0.84rem;
             }
+            .gs-footer-brand {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+            .gs-footer-name {
+                color: #1E293B;
+                font-weight: 700;
+            }
 
             /* Gaya Sidebar */
             [data-testid="stSidebar"] {
@@ -1058,14 +1068,34 @@ def apply_custom_css():
                     text-align: center !important;
                     padding: 16px 12px !important;
                     font-size: 0.80rem !important;
-                    gap: 8px !important;
+                    gap: 4px !important;
                 }
                 .gs-footer div,
                 .gs-footer-brand,
                 .gs-footer-page {
                     text-align: center !important;
                     width: 100% !important;
-                    line-height: 1.5 !important;
+                    line-height: 1.45 !important;
+                }
+                .gs-footer-brand {
+                    display: flex !important;
+                    flex-direction: column !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    gap: 3px !important;
+                }
+                .gs-footer-icon {
+                    display: block !important;
+                    font-size: 1rem !important;
+                    line-height: 1.2 !important;
+                }
+                .gs-footer-name,
+                .gs-footer-desc {
+                    display: block !important;
+                    width: 100% !important;
+                }
+                .gs-footer-sep {
+                    display: none !important;
                 }
                 /* Lebar sidebar 80vw saat dibuka dan tersembunyi penuh saat ditutup pada layar mobile */
                 [data-testid="stSidebar"][aria-expanded="true"] {
@@ -1264,7 +1294,12 @@ def render_footer(page_name="Home"):
     st.markdown(
         f"""
         <div class="gs-footer">
-            <div class="gs-footer-brand"><strong>🧬 Genetic Scheduler</strong> · Sistem Optimasi Penjadwalan Kuliah Berbasis Algoritma Genetika</div>
+            <div class="gs-footer-brand">
+                <span class="gs-footer-icon">🧬</span>
+                <strong class="gs-footer-name">Genetic Scheduler</strong>
+                <span class="gs-footer-sep">·</span>
+                <span class="gs-footer-desc">Aplikasi Penyusunan Jadwal Perkuliahan Otomatis</span>
+            </div>
             <div class="gs-footer-page">Halaman: <strong>{page_name}</strong></div>
         </div>
         """,

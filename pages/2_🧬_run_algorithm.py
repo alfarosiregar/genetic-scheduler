@@ -59,6 +59,7 @@ if "populasi_data" not in st.session_state or len(st.session_state.populasi_data
             unsafe_allow_html=True,
         )
     with c_back2:
+        st.markdown('<div class="gs-mobile-spacer"></div>', unsafe_allow_html=True)
         if st.button("📊 Buka Input Data", type="primary", width="stretch"):
             st.switch_page("pages/1_📊_input_data.py")
     render_footer("Run Algorithm")
