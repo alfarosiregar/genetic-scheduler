@@ -1,58 +1,47 @@
-"""Header, Hero Banner, Workflow Stepper, dan Global Responsive CSS"""
+"""Komponen Header, Hero Banner, Stepper Alur Kerja, Footer, dan CSS Responsif Global."""
 import base64
 import functools
+from contextlib import nullcontext
 from io import BytesIO
+from pathlib import Path
 from PIL import Image
 import streamlit as st
 from streamlit.navigation.page import StreamlitPage
-from config.settings import (
-    APP_IMAGE_PATH,
-    INPUT_IMAGE_PATH,
-    RUN_IMAGE_PATH,
-    RESULT_IMAGE_PATH,
-    SETTING_IMAGE_PATH,
-)
+from config.settings import APP_IMAGE_PATH
 
-from pathlib import Path
-
-# Ubah label default 'app' dari app.py di navigasi sidebar menjadi '🏠 Beranda'
-if not getattr(StreamlitPage, "_beranda_patched_v3", False):
+# Sembunyikan rute 'app.py' (Landing Page) dari daftar menu navigasi di Sidebar Dashboard
+if not getattr(StreamlitPage, "_landing_patched_v5", False):
     _orig_sp_init = getattr(StreamlitPage, "_orig_unpatched_init", StreamlitPage.__init__)
     StreamlitPage._orig_unpatched_init = _orig_sp_init
     _orig_wrapped_init = getattr(_orig_sp_init, "__wrapped__", _orig_sp_init)
 
-    def _inject_beranda_kwargs(page, kwargs):
+    def _inject_landing_kwargs(page, kwargs):
         try:
             page_stem = Path(str(page)).stem if isinstance(page, (str, Path)) else ""
             if page_stem == "app" or kwargs.get("default") is True:
-                if not kwargs.get("title"):
-                    kwargs = dict(kwargs, title="Beranda")
-                if not kwargs.get("icon"):
-                    kwargs = dict(kwargs, icon="🏠")
+                kwargs = dict(kwargs, title="Landing Page", icon="✨", visibility="hidden")
         except Exception:
             pass
         return kwargs
 
     @functools.wraps(_orig_wrapped_init)
     def _patched_wrapped_init(self, page, *args, **kwargs):
-        kwargs = _inject_beranda_kwargs(page, kwargs)
+        kwargs = _inject_landing_kwargs(page, kwargs)
         _orig_wrapped_init(self, page, *args, **kwargs)
 
     @functools.wraps(_orig_sp_init)
     def _patched_sp_init(self, page, *args, **kwargs):
-        kwargs = _inject_beranda_kwargs(page, kwargs)
+        kwargs = _inject_landing_kwargs(page, kwargs)
         _orig_sp_init(self, page, *args, **kwargs)
 
     _patched_sp_init.__wrapped__ = _patched_wrapped_init
     StreamlitPage.__init__ = _patched_sp_init
-    StreamlitPage._beranda_patched = True
-    StreamlitPage._beranda_patched_v2 = True
-    StreamlitPage._beranda_patched_v3 = True
+    StreamlitPage._landing_patched_v5 = True
 
 
 @st.cache_data
 def _get_base64_image(path):
-    """Konversi file gambar ke base64 string dengan caching agar cepat."""
+    """Mengonversi file gambar menjadi string base64 dengan caching."""
     try:
         image = Image.open(path)
         buffered = BytesIO()
@@ -62,59 +51,157 @@ def _get_base64_image(path):
         return None
 
 
-from contextlib import nullcontext
-from streamlit.runtime.scriptrunner_utils.script_run_context import get_script_run_ctx
-
-
 def _main_shell_scope():
-    """Scope persistent main_script_hash agar elemen tidak pernah di-unmount saat pindah halaman."""
-    try:
-        ctx = get_script_run_ctx(suppress_warning=True)
-        if (
-            ctx is not None
-            and hasattr(ctx, "pages_manager")
-            and hasattr(ctx.pages_manager, "main_script_hash")
-            and hasattr(ctx, "run_with_active_hash")
-        ):
-            return ctx.run_with_active_hash(ctx.pages_manager.main_script_hash)
-    except Exception:
-        pass
+    """Mengembalikan konteks standar halaman agar elemen tidak saling menimpa antar rute."""
     return nullcontext()
 
 
 def apply_custom_css():
-    """Terapkan Global Design System CSS secara persistent di main shell (0ms tanpa kedipan/delay)."""
-    with _main_shell_scope():
-        st.markdown(
-            """
+    """Menyuntikkan CSS global dan pengatur ukuran sidebar responsif untuk seluruh halaman Dashboard."""
+    st.markdown(
+        """
         <style>
             html, body, [class*="css"] {
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             }
 
-            /* Sembunyikan Top Navbar / Header bawaan Streamlit (Deploy, Menu ⋮, garis dekorasi) */
-            [data-testid="stToolbar"],
-            [data-testid="stDecoration"],
+            /* Sembunyikan menu toolbar kanan bawaan Streamlit */
+            [data-testid="stToolbarActions"],
+            [data-testid="stAppDeployButton"],
+            .stDeployButton,
+            [data-testid="stMainMenu"],
+            #MainMenu,
             [data-testid="stStatusWidget"],
-            #MainMenu {
+            [data-testid="stDecoration"] {
                 display: none !important;
                 visibility: hidden !important;
             }
             header[data-testid="stHeader"] {
                 background: transparent !important;
-                height: 0px !important;
-                min-height: 0px !important;
+                height: 3.5rem !important;
+                min-height: 3.5rem !important;
                 border: none !important;
                 box-shadow: none !important;
+                pointer-events: none !important;
+                z-index: 999990 !important;
+            }
+            header[data-testid="stHeader"] [data-testid="stToolbar"] {
+                background: transparent !important;
+                pointer-events: none !important;
+            }
+
+            /* Tombol buka & tutup sidebar */
+            [data-testid="stExpandSidebarButton"],
+            [data-testid="collapsedControl"] button {
+                pointer-events: auto !important;
+                display: inline-flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 6px !important;
+                position: fixed !important;
+                top: 12px !important;
+                left: 14px !important;
+                z-index: 999999 !important;
+                background: linear-gradient(135deg, #1E1B4B 0%, #4F46E5 100%) !important;
+                color: #FFFFFF !important;
+                border: 1.5px solid rgba(165, 180, 252, 0.65) !important;
+                border-radius: 12px !important;
+                padding: 8px 14px !important;
+                min-height: 40px !important;
+                width: auto !important;
+                height: auto !important;
+                box-shadow: 0 6px 18px rgba(30, 27, 75, 0.38) !important;
+                cursor: pointer !important;
+                transition: all 0.2s ease !important;
+            }
+            [data-testid="stAppViewContainer"]:has([data-testid="stSidebar"][aria-expanded="true"]) [data-testid="stExpandSidebarButton"],
+            [data-testid="stAppViewContainer"]:has([data-testid="stSidebar"][aria-expanded="true"]) [data-testid="collapsedControl"] {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+            }
+            [data-testid="stExpandSidebarButton"]:hover,
+            [data-testid="collapsedControl"] button:hover {
+                background: linear-gradient(135deg, #312E81 0%, #6366F1 100%) !important;
+                transform: translateY(-1px) !important;
+                box-shadow: 0 8px 22px rgba(79, 70, 229, 0.5) !important;
+            }
+            [data-testid="stExpandSidebarButton"]::after,
+            [data-testid="collapsedControl"] button::after {
+                content: "Buka Sidebar";
+                font-size: 0.82rem !important;
+                font-weight: 700 !important;
+                color: #FFFFFF !important;
+                letter-spacing: 0.01em !important;
+                line-height: 1 !important;
+                white-space: nowrap !important;
+            }
+            [data-testid="stExpandSidebarButton"] *,
+            [data-testid="stExpandSidebarButton"] svg,
+            [data-testid="collapsedControl"] button * {
+                color: #FFFFFF !important;
+            }
+            [data-testid="stExpandSidebarButton"] svg,
+            [data-testid="stExpandSidebarButton"] svg path:not([fill="none"]),
+            [data-testid="collapsedControl"] button svg,
+            [data-testid="collapsedControl"] button svg path:not([fill="none"]) {
+                fill: #FFFFFF !important;
+            }
+            [data-testid="stSidebarHeader"] {
+                display: flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                pointer-events: auto !important;
+                position: relative !important;
+                z-index: 999999 !important;
+            }
+            [data-testid="stSidebarCollapseButton"] {
+                opacity: 1 !important;
+                visibility: visible !important;
+                display: flex !important;
+                pointer-events: auto !important;
+                position: relative !important;
+                z-index: 999999 !important;
+            }
+            [data-testid="stSidebarCollapseButton"] button {
+                pointer-events: auto !important;
+                cursor: pointer !important;
+                background: rgba(255, 255, 255, 0.14) !important;
+                border: 1px solid rgba(255, 255, 255, 0.28) !important;
+                border-radius: 10px !important;
+                padding: 5px 10px !important;
+                color: #FFFFFF !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                gap: 4px !important;
+                transition: all 0.2s ease !important;
+            }
+            [data-testid="stSidebarCollapseButton"] button:hover {
+                background: rgba(255, 255, 255, 0.24) !important;
+                border-color: rgba(255, 255, 255, 0.5) !important;
+            }
+            [data-testid="stSidebarCollapseButton"] button *,
+            [data-testid="stSidebarCollapseButton"] button svg {
+                color: #FFFFFF !important;
+            }
+            [data-testid="stSidebarCollapseButton"] button svg,
+            [data-testid="stSidebarCollapseButton"] button svg path:not([fill="none"]) {
+                fill: #FFFFFF !important;
             }
 
             .block-container {
-                padding-top: 1.2rem !important;
+                padding-top: 1.4rem !important;
                 padding-bottom: 3rem !important;
                 max-width: 1280px !important;
             }
+            [data-testid="stAppViewContainer"]:has([data-testid="stSidebar"][aria-expanded="false"]) .block-container {
+                padding-top: 3.8rem !important;
+            }
 
-            /* ===== HERO BANNER ===== */
+            /* Hero Banner */
             .gs-hero {
                 background: linear-gradient(135deg, #1E1B4B 0%, #312E81 45%, #4F46E5 100%);
                 border-radius: 20px;
@@ -128,6 +215,7 @@ def apply_custom_css():
                 margin-bottom: 1.5rem;
                 position: relative;
                 overflow: hidden;
+                box-sizing: border-box;
             }
             .gs-hero::before {
                 content: "";
@@ -141,7 +229,8 @@ def apply_custom_css():
                 pointer-events: none;
             }
             .gs-hero-content {
-                flex: 1.35;
+                flex: 1 1 0%;
+                min-width: 0;
                 z-index: 1;
             }
             .gs-badge {
@@ -158,6 +247,7 @@ def apply_custom_css():
                 letter-spacing: 0.3px;
                 margin-bottom: 12px;
                 backdrop-filter: blur(8px);
+                max-width: 100%;
             }
             .gs-hero-title {
                 font-size: 2.05rem;
@@ -166,6 +256,7 @@ def apply_custom_css():
                 margin: 0 0 10px 0;
                 color: #FFFFFF !important;
                 letter-spacing: -0.02em;
+                word-break: break-word;
             }
             .gs-hero-sub {
                 font-size: 0.98rem;
@@ -173,6 +264,7 @@ def apply_custom_css():
                 color: #C7D2FE;
                 margin: 0 0 16px 0;
                 max-width: 640px;
+                word-break: break-word;
             }
             .gs-status-pills {
                 display: flex;
@@ -188,11 +280,13 @@ def apply_custom_css():
                 border-radius: 10px;
                 font-size: 0.8rem;
                 font-weight: 600;
+                max-width: 100%;
+                box-sizing: border-box;
             }
             .gs-hero-img-wrap {
-                flex: 0 0 300px;
-                width: 300px;
-                max-width: 300px;
+                flex: 0 0 290px;
+                width: 290px;
+                max-width: 290px;
                 height: 185px;
                 background: #FFFFFF;
                 border-radius: 14px;
@@ -204,6 +298,7 @@ def apply_custom_css():
                 overflow: hidden;
                 z-index: 1;
                 transition: transform 0.25s ease;
+                box-sizing: border-box;
             }
             .gs-hero-img-wrap:hover {
                 transform: translateY(-3px) scale(1.01);
@@ -218,7 +313,7 @@ def apply_custom_css():
                 display: block;
             }
 
-            /* ===== WORKFLOW STEPPER ===== */
+            /* Indikator Alur Kerja (Stepper) */
             .gs-stepper {
                 display: grid;
                 grid-template-columns: repeat(4, 1fr);
@@ -279,7 +374,7 @@ def apply_custom_css():
                 color: #64748B;
             }
 
-            /* ===== MODERN CARDS ===== */
+            /* Kartu & Metrik */
             .gs-card {
                 background: #FFFFFF;
                 border: 1px solid #E2E8F0;
@@ -319,7 +414,6 @@ def apply_custom_css():
                 line-height: 1.55;
             }
 
-            /* ===== STREAMLIT METRIC ENHANCEMENT ===== */
             [data-testid="stMetric"] {
                 background: #FFFFFF;
                 border: 1px solid #E2E8F0;
@@ -342,7 +436,7 @@ def apply_custom_css():
                 color: #0F172A !important;
             }
 
-            /* ===== BANNERS & BADGES ===== */
+            /* Banner Status & Judul Section */
             .gs-banner-success {
                 background: linear-gradient(135deg, #059669 0%, #10B981 100%);
                 color: #FFFFFF;
@@ -379,7 +473,7 @@ def apply_custom_css():
                 gap: 8px;
             }
 
-            /* ===== TIMETABLE DAY CARDS ===== */
+            /* Kartu Jadwal Mingguan */
             .gs-slot-card {
                 background: #FFFFFF;
                 border-left: 4px solid #4F46E5;
@@ -420,7 +514,7 @@ def apply_custom_css():
                 color: #475569;
             }
 
-            /* ===== FOOTER ===== */
+            /* Footer */
             .gs-footer {
                 margin-top: 2.5rem;
                 padding: 18px 24px;
@@ -434,21 +528,53 @@ def apply_custom_css():
                 font-size: 0.84rem;
             }
 
-            /* ===== MODERN SIDEBAR STYLING ===== */
+            /* Gaya Sidebar */
             [data-testid="stSidebar"] {
                 background: linear-gradient(180deg, #0F172A 0%, #1E1B4B 100%) !important;
                 border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
             }
+            [data-testid="stSidebar"][aria-expanded="true"] {
+                visibility: visible !important;
+                opacity: 1 !important;
+                transform: translateX(0) !important;
+                pointer-events: auto !important;
+            }
+            /* Sembunyikan seluruh elemen sidebar ketika ditutup */
+            [data-testid="stSidebar"][aria-expanded="false"] {
+                width: 0px !important;
+                min-width: 0px !important;
+                max-width: 0px !important;
+                flex: 0 0 0px !important;
+                margin: 0px !important;
+                padding: 0px !important;
+                border: none !important;
+                box-shadow: none !important;
+                overflow: hidden !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+                transform: translateX(-120vw) !important;
+            }
+            [data-testid="stSidebar"][aria-expanded="false"] > *,
+            [data-testid="stSidebar"][aria-expanded="false"] [data-testid="stSidebarContent"],
+            [data-testid="stSidebar"][aria-expanded="false"] [data-testid="stSidebarHeader"],
+            [data-testid="stSidebar"][aria-expanded="false"] [data-testid="stSidebarNav"],
+            [data-testid="stSidebar"][aria-expanded="false"] [data-testid="stSidebarUserContent"] {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                width: 0px !important;
+                overflow: hidden !important;
+                pointer-events: none !important;
+            }
             [data-testid="stSidebar"] * {
                 color: #F1F5F9;
             }
-            /* Dropdown & input fields inside dark sidebar keep dark readable text */
             [data-testid="stSidebar"] [data-baseweb="select"] *,
             [data-testid="stSidebar"] input,
             [data-testid="stSidebar"] textarea {
                 color: #0F172A !important;
             }
-            /* Sidebar Multipage Navigation Links */
             [data-testid="stSidebarNav"] {
                 padding-top: 0.75rem !important;
                 padding-bottom: 0.5rem !important;
@@ -457,6 +583,10 @@ def apply_custom_css():
             [data-testid="stSidebarNav"] ul {
                 padding: 0 10px !important;
             }
+            [data-testid="stSidebarNavItems"] > li:has(a[href$="/"]),
+            [data-testid="stSidebarNavItems"] > li:has(a[href$="/app"]) {
+                display: none !important;
+            }
             [data-testid="stSidebarNav"] ul li a {
                 border-radius: 12px !important;
                 padding: 9px 14px !important;
@@ -464,6 +594,12 @@ def apply_custom_css():
                 transition: all 0.2s ease !important;
                 font-weight: 600 !important;
                 border: 1px solid transparent !important;
+                text-transform: capitalize !important;
+            }
+            [data-testid="stSidebarNav"] ul li a span,
+            [data-testid="stSidebarNavItems"] a span,
+            [data-testid="stSidebarNavItems"] a {
+                text-transform: capitalize !important;
             }
             [data-testid="stSidebarNav"] ul li a:hover {
                 background: rgba(255, 255, 255, 0.1) !important;
@@ -477,7 +613,7 @@ def apply_custom_css():
                 color: #FFFFFF !important;
             }
 
-            /* Sidebar Custom Cards */
+            /* Kartu Identitas & Monitor di Sidebar */
             .gs-sb-brand {
                 background: linear-gradient(135deg, rgba(79, 70, 229, 0.35) 0%, rgba(124, 58, 237, 0.25) 100%);
                 border: 1px solid rgba(165, 180, 252, 0.25);
@@ -587,14 +723,12 @@ def apply_custom_css():
                 text-align: center;
                 white-space: nowrap;
             }
-            /* Form container inside sidebar */
             [data-testid="stSidebar"] [data-testid="stForm"] {
                 background: rgba(15, 23, 42, 0.45) !important;
                 border: 1px solid rgba(255, 255, 255, 0.14) !important;
                 border-radius: 14px !important;
                 padding: 14px !important;
             }
-            /* Expander 'Tambah Jadwal Cepat' inside sidebar (non-white indigo theme) */
             [data-testid="stSidebar"] [data-testid="stExpander"],
             [data-testid="stSidebar"] [data-testid="stExpander"] details {
                 background: rgba(30, 27, 75, 0.85) !important;
@@ -615,9 +749,11 @@ def apply_custom_css():
             [data-testid="stSidebar"] [data-testid="stExpander"] summary *,
             [data-testid="stSidebar"] [data-testid="stExpander"] summary svg {
                 color: #FFFFFF !important;
+            }
+            [data-testid="stSidebar"] [data-testid="stExpander"] summary svg,
+            [data-testid="stSidebar"] [data-testid="stExpander"] summary svg path:not([fill="none"]) {
                 fill: #FFFFFF !important;
             }
-            /* Buttons inside sidebar ('Muat 15 Sampel Instan' & 'Tambahkan Jadwal') */
             [data-testid="stSidebar"] .stButton > button,
             [data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] {
                 background: linear-gradient(135deg, #0D9488 0%, #10B981 100%) !important;
@@ -652,8 +788,47 @@ def apply_custom_css():
                 color: #FFFFFF !important;
                 border-color: rgba(199, 210, 254, 0.65) !important;
             }
-            [data-testid="stSidebar"] button * {
+            [data-testid="stSidebar"] .stButton > button *,
+            [data-testid="stSidebar"] [data-testid="stFormSubmitButton"] > button *,
+            [data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] *,
+            [data-testid="stSidebar"] [data-testid="stBaseButton-primary"] * {
                 color: #FFFFFF !important;
+            }
+            [data-testid="stSidebar"] .stButton > button svg,
+            [data-testid="stSidebar"] .stButton > button svg path:not([fill="none"]),
+            [data-testid="stSidebar"] [data-testid="stFormSubmitButton"] > button svg,
+            [data-testid="stSidebar"] [data-testid="stFormSubmitButton"] > button svg path:not([fill="none"]) {
+                fill: #FFFFFF !important;
+            }
+            /* Ikon panah dropdown (chevron) pada input selectbox di sidebar */
+            [data-testid="stSidebar"] [data-testid="stSelectbox"] button[aria-label="Open"],
+            [data-testid="stSidebar"] [data-testid="stSelectbox"] button[aria-label="Clear value"] {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                color: #1E1B4B !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: 0 6px !important;
+            }
+            [data-testid="stSidebar"] [data-testid="stSelectbox"] svg,
+            [data-testid="stSidebar"] [data-baseweb="select"] svg {
+                color: #1E1B4B !important;
+                fill: #1E1B4B !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+                width: 1.25rem !important;
+                height: 1.25rem !important;
+            }
+            [data-testid="stSidebar"] [data-testid="stSelectbox"] svg path:not([fill="none"]),
+            [data-testid="stSidebar"] [data-baseweb="select"] svg path:not([fill="none"]) {
+                fill: #1E1B4B !important;
+            }
+            svg path[fill="none"] {
+                fill: none !important;
             }
             [data-testid="stSidebar"] [data-testid="stMetric"] {
                 background: rgba(15, 23, 42, 0.55) !important;
@@ -664,7 +839,6 @@ def apply_custom_css():
                 color: #FFFFFF !important;
             }
 
-            /* Hide zero-height utility iframes */
             iframe[height="0"] {
                 display: none !important;
                 height: 0px !important;
@@ -680,27 +854,281 @@ def apply_custom_css():
                 padding: 0px !important;
             }
 
-            /* ===== RESPONSIVE MEDIA QUERIES ===== */
+            /* Kelas Grid Responsif */
+            .gs-grid-6 {
+                display: grid;
+                grid-template-columns: repeat(6, minmax(0, 1fr));
+                gap: 12px;
+                align-items: stretch;
+                margin-bottom: 0.75rem;
+            }
+            .gs-grid-5 {
+                display: grid;
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+                gap: 12px;
+                align-items: stretch;
+                margin-bottom: 1rem;
+            }
+            .gs-grid-4 {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 16px;
+                align-items: stretch;
+            }
+            .gs-grid-3 {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 14px;
+                align-items: stretch;
+            }
+            .gs-kpi-card {
+                padding: 15px 16px !important;
+                border-radius: 14px !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+                box-sizing: border-box !important;
+                min-width: 0 !important;
+            }
+            .gs-kpi-label {
+                font-size: 0.84rem;
+                font-weight: 600;
+                color: #475569;
+                margin-bottom: 6px;
+                line-height: 1.3;
+                word-break: break-word;
+            }
+            .gs-kpi-value {
+                font-size: 1.85rem;
+                font-weight: 800;
+                color: #0F172A;
+                line-height: 1.15;
+                word-break: break-word;
+            }
+            .gs-kpi-sub {
+                font-size: 0.74rem;
+                color: #64748B;
+                margin-top: 6px;
+                line-height: 1.3;
+            }
+
+            [data-baseweb="tab-list"] {
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                flex-wrap: nowrap !important;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin;
+                gap: 6px !important;
+            }
+            [data-baseweb="tab"] {
+                white-space: nowrap !important;
+                flex-shrink: 0 !important;
+            }
+
+            .stButton > button,
+            .stDownloadButton > button,
+            [data-testid="stFormSubmitButton"] > button {
+                min-height: 42px !important;
+                height: auto !important;
+                white-space: normal !important;
+                word-break: break-word !important;
+                line-height: 1.35 !important;
+                padding: 0.5rem 0.9rem !important;
+            }
+
+            /* Media Queries untuk Tablet & Mobile */
+            @media (max-width: 1100px) {
+                .gs-grid-6,
+                .gs-grid-5 {
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                }
+                .gs-grid-4 {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                }
+            }
+
+            @media (min-width: 769px) and (max-width: 1024px) {
+                [data-testid="stHorizontalBlock"] {
+                    flex-wrap: wrap !important;
+                }
+                [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+                    min-width: calc(50% - 1rem) !important;
+                    flex: 1 1 calc(50% - 1rem) !important;
+                }
+            }
+
             @media (max-width: 900px) {
                 .gs-hero {
-                    flex-direction: column;
-                    padding: 22px 20px;
+                    flex-direction: column !important;
+                    align-items: stretch !important;
+                    padding: 20px 18px !important;
+                    gap: 16px !important;
                     text-align: left;
                 }
+                .gs-hero-content {
+                    width: 100% !important;
+                    flex: 1 1 auto !important;
+                }
                 .gs-hero-img-wrap {
-                    max-width: 100%;
-                    width: 100%;
+                    flex: 0 0 auto !important;
+                    max-width: 100% !important;
+                    width: 100% !important;
+                    height: 170px !important;
+                    max-height: 170px !important;
+                }
+                .gs-hero-img {
+                    width: 100% !important;
+                    height: 100% !important;
+                    max-height: 170px !important;
+                    object-fit: contain !important;
                 }
                 .gs-hero-title {
-                    font-size: 1.6rem;
+                    font-size: 1.5rem !important;
+                    line-height: 1.25 !important;
+                }
+                .gs-hero-sub {
+                    font-size: 0.9rem !important;
+                    line-height: 1.5 !important;
+                    margin-bottom: 12px !important;
                 }
                 .gs-stepper {
                     grid-template-columns: repeat(2, 1fr);
                 }
+                .gs-grid-3 {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                }
+            }
+
+            @media (max-width: 768px) {
+                .block-container {
+                    padding-top: 3.8rem !important;
+                    padding-left: 0.9rem !important;
+                    padding-right: 0.9rem !important;
+                    padding-bottom: 2.5rem !important;
+                }
+                [data-testid="stHorizontalBlock"] {
+                    flex-wrap: wrap !important;
+                    gap: 0.65rem !important;
+                }
+                [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+                    width: 100% !important;
+                    flex: 1 1 100% !important;
+                    min-width: 100% !important;
+                }
+                .gs-grid-6,
+                .gs-grid-5 {
+                    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                    gap: 10px !important;
+                }
+                .gs-grid-5 > :last-child:nth-child(odd) {
+                    grid-column: 1 / -1;
+                }
+                .gs-grid-4,
+                .gs-grid-3 {
+                    grid-template-columns: 1fr !important;
+                    gap: 10px !important;
+                }
+                .gs-kpi-card {
+                    padding: 13px 14px !important;
+                }
+                .gs-kpi-value {
+                    font-size: 1.45rem !important;
+                }
+                .gs-card {
+                    padding: 16px !important;
+                }
+                .gs-banner-success,
+                .gs-banner-warn {
+                    flex-direction: column !important;
+                    align-items: flex-start !important;
+                    gap: 8px !important;
+                    padding: 14px 16px !important;
+                    font-size: 0.86rem !important;
+                    white-space: normal !important;
+                    word-break: break-word !important;
+                }
+                .gs-section-title {
+                    font-size: 1.08rem !important;
+                    line-height: 1.35 !important;
+                }
+                .gs-footer {
+                    flex-direction: column !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    text-align: center !important;
+                    padding: 16px 12px !important;
+                    font-size: 0.80rem !important;
+                    gap: 8px !important;
+                }
+                .gs-footer div,
+                .gs-footer-brand,
+                .gs-footer-page {
+                    text-align: center !important;
+                    width: 100% !important;
+                    line-height: 1.5 !important;
+                }
+                /* Lebar sidebar 80vw saat dibuka dan tersembunyi penuh saat ditutup pada layar mobile */
+                [data-testid="stSidebar"][aria-expanded="true"] {
+                    width: 80vw !important;
+                    min-width: 80vw !important;
+                    max-width: 80vw !important;
+                    flex: 0 0 80vw !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                    transform: translateX(0) !important;
+                    pointer-events: auto !important;
+                }
+                [data-testid="stSidebar"][aria-expanded="true"] [data-testid="stSidebarContent"] {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
+                }
+                [data-testid="stSidebar"][aria-expanded="false"] {
+                    width: 0px !important;
+                    min-width: 0px !important;
+                    max-width: 0px !important;
+                    flex: 0 0 0px !important;
+                    margin: 0px !important;
+                    padding: 0px !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    overflow: hidden !important;
+                    visibility: hidden !important;
+                    opacity: 0 !important;
+                    pointer-events: none !important;
+                    transform: translateX(-120vw) !important;
+                }
+                [data-testid="stSidebar"] div[style*="col-resize"] {
+                    display: none !important;
+                    pointer-events: none !important;
+                }
+            }
+
+            .gs-mobile-spacer {
+                display: none;
+            }
+            @media (max-width: 768px) {
+                .gs-mobile-spacer {
+                    display: block !important;
+                    height: 12px !important;
+                    width: 100% !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
             }
             @media (max-width: 540px) {
                 .gs-stepper {
-                    grid-template-columns: 1fr;
+                    grid-template-columns: 1fr !important;
+                }
+                .gs-hero-title {
+                    font-size: 1.35rem !important;
+                }
+                .gs-status-pills {
+                    gap: 6px !important;
+                }
+                .gs-pill {
+                    font-size: 0.75rem !important;
+                    padding: 4px 10px !important;
                 }
             }
         </style>
@@ -708,48 +1136,54 @@ def apply_custom_css():
         unsafe_allow_html=True,
     )
 
-    if "_sb_width_reset_done" not in st.session_state:
-        st.session_state["_sb_width_reset_done"] = True
-        import streamlit.components.v1 as components
+    import streamlit.components.v1 as components
 
-        with _main_shell_scope():
-            components.html(
-                """
-                <script>
-                (function() {
-                    try {
-                        const p = window.parent;
-                        p.localStorage.setItem("sidebarWidth", "300");
-                        const sb = p.document.querySelector('[data-testid="stSidebar"]');
-                        if (sb) {
-                            const handle = sb.querySelector('div[style*="col-resize"], .eelgd2m3');
-                            if (handle) {
-                                handle.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, cancelable: true }));
-                            }
-                            if (sb.getAttribute("aria-expanded") === "true") {
-                                sb.style.width = "300px";
-                            }
+    components.html(
+        r"""
+        <script>
+        (function() {
+            try {
+                const p = window.parent;
+                p.localStorage.setItem("sidebarWidth", "300");
+                const sb = p.document.querySelector('[data-testid="stSidebar"]');
+                if (!sb) return;
+                const lockedProps = ["width", "min-width", "max-width", "visibility", "opacity", "transform", "overflow"];
+                lockedProps.forEach(function(prop) {
+                    sb.style.removeProperty(prop);
+                });
+                if (sb.getAttribute("aria-expanded") === "true" && p.innerWidth > 768) {
+                    sb.style.width = "300px";
+                }
+                if (!sb.__gsSetPropPatched) {
+                    sb.__gsSetPropPatched = true;
+                    const origSetProp = sb.style.setProperty.bind(sb.style);
+                    sb.style.setProperty = function(prop, val, priority) {
+                        if (priority === "important" && lockedProps.indexOf(prop) !== -1) {
+                            sb.style.removeProperty(prop);
+                            return;
                         }
-                        if (!p.__gsSidebarResetHooked) {
-                            p.__gsSidebarResetHooked = true;
-                            p.addEventListener("beforeunload", function() {
-                                try { p.localStorage.removeItem("sidebarWidth"); } catch (e) {}
-                            });
-                        }
-                    } catch (e) {}
-                })();
-                </script>
-                """,
-                height=0,
-                width=0,
-            )
+                        return origSetProp(prop, val, priority);
+                    };
+                }
+                const navSpans = p.document.querySelectorAll('[data-testid="stSidebarNav"] a span, [data-testid="stSidebarNavItems"] a span');
+                navSpans.forEach(function(s) {
+                    if (s && s.textContent) {
+                        s.textContent = s.textContent.replace(/(?:^|\s|_)\w/g, function(l) {
+                            return l.toUpperCase().replace('_', ' ');
+                        });
+                    }
+                });
+            } catch (e) {}
+        })();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
 
 
 def render_workflow_stepper(active_step=0):
-    """
-    Tampilkan indikator alur kerja 4 tahap yang interaktif dan kontekstual.
-    active_step: 0 (Home), 1 (Input Data), 2 (Run GA), 3 (Results), 4 (Settings)
-    """
+    """Merender indikator 4 tahap alur kerja sesuai halaman yang sedang aktif."""
     pop_count = len(st.session_state.get("populasi_data", {}))
     has_results = st.session_state.get("ga_results") is not None
 
@@ -776,11 +1210,11 @@ def render_workflow_stepper(active_step=0):
     st.markdown(f'<div class="gs-stepper">{"".join(items_html)}</div>', unsafe_allow_html=True)
 
 
-_HEADER_REV = 6
+_HEADER_REV = 22
 
 
 def render_page_hero(title, subtitle, badge="🧬 Genetic Scheduler", image_path=APP_IMAGE_PATH, active_step=0):
-    """Render Hero Banner modern 2 kolom beserta global sidebar secara instan."""
+    """Merender Hero Banner halaman Dashboard beserta sidebar global."""
     apply_custom_css()
     st.session_state["_sb_rendered_this_run"] = False
 
@@ -799,8 +1233,8 @@ def render_page_hero(title, subtitle, badge="🧬 Genetic Scheduler", image_path
 
     img_b64 = _get_base64_image(image_path)
     img_html = (
-        f'<div class="gs-hero-img-wrap" style="background: #FFFFFF; width: 300px; height: 185px; border-radius: 14px; overflow: hidden; display: flex; align-items: center; justify-content: center;">'
-        f'<img class="gs-hero-img" style="width: 100%; height: 100%; object-fit: contain; background: #FFFFFF; border: none; box-shadow: none;" src="data:image/jpeg;base64,{img_b64}" alt="Banner">'
+        f'<div class="gs-hero-img-wrap">'
+        f'<img class="gs-hero-img" src="data:image/jpeg;base64,{img_b64}" alt="Banner">'
         f'</div>'
         if img_b64
         else ""
@@ -826,23 +1260,23 @@ def render_page_hero(title, subtitle, badge="🧬 Genetic Scheduler", image_path
 
 
 def render_footer(page_name="Home"):
-    """Render footer konsisten di bagian bawah halaman."""
+    """Merender footer halaman Dashboard."""
     st.markdown(
         f"""
         <div class="gs-footer">
-            <div><strong>🧬 Genetic Scheduler</strong> · Sistem Optimasi Penjadwalan Kuliah Berbasis Algoritma Genetika</div>
-            <div>Halaman: <strong>{page_name}</strong></div>
+            <div class="gs-footer-brand"><strong>🧬 Genetic Scheduler</strong> · Sistem Optimasi Penjadwalan Kuliah Berbasis Algoritma Genetika</div>
+            <div class="gs-footer-page">Halaman: <strong>{page_name}</strong></div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 
-# ===== FUNGSI KOMPATIBILITAS LAMA =====
 def display_header():
+    """Fungsi kompatibilitas untuk merender header default."""
     render_page_hero(
         title="Genetic Scheduler",
-        subtitle="Otomatisasi dan optimasi penyusunan jadwal perkuliahan bebas bentrok menggunakan Algoritma Genetika.",
+        subtitle="Susun jadwal perkuliahan otomatis dengan optimasi ruang dan dosen.",
         badge="🧬 Evolutionary Timetable Optimizer",
         image_path=APP_IMAGE_PATH,
         active_step=0,

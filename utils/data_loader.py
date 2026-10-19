@@ -1,4 +1,4 @@
-"""Fungsi untuk load data dari Excel"""
+"""Utilitas pemuatan data jadwal dan referensi dari file Excel."""
 import streamlit as st
 import pandas as pd
 from config.settings import DATABASE_PATH, KROMOSOM_PATH, COLUMN_MAPPING
@@ -6,10 +6,9 @@ from config.settings import DATABASE_PATH, KROMOSOM_PATH, COLUMN_MAPPING
 
 @st.cache_data
 def load_kromosom_data():
-    """Load data dari Kromosom.xlsx"""
+    """Memuat tabel kromosom dari Kromosom.xlsx."""
     try:
-        df = pd.read_excel(KROMOSOM_PATH)
-        return df
+        return pd.read_excel(KROMOSOM_PATH)
     except FileNotFoundError:
         st.error("❌ File 'Kromosom.xlsx' tidak ditemukan!")
         return None
@@ -20,15 +19,10 @@ def load_kromosom_data():
 
 @st.cache_data
 def load_databases():
-    """Load dan gabungkan data dari Kromosom.xlsx dan Databases.xlsx"""
+    """Memuat daftar unik atribut penjadwalan dari Databases.xlsx."""
     try:
-        df_kromosom = pd.read_excel(KROMOSOM_PATH)
         df_databases = pd.read_excel(DATABASE_PATH)
-        
-        # Ambil data unik dari Databases.xlsx.
-        # Simpan NILAI MENTAH (tanpa prefix "1 - Nama") agar perbandingan
-        # konflik dosen antar-kromosom konsisten, apapun sumber input-nya
-        # (form sidebar atau upload Excel).
+
         data = {}
         for key, col_index in COLUMN_MAPPING.items():
             if len(df_databases.columns) > col_index:
@@ -36,10 +30,25 @@ def load_databases():
                 data[key] = [str(val).strip() for val in unique_values]
             else:
                 data[key] = ['Data kosong']
-        
-        # Tambahkan opsi kosong untuk blok
+
         data['blok'] = [''] + data.get('blok', [])
-        
+
+        # Pemetaan SKS per mata kuliah dari dataset referensi
+        matkul_sks = {}
+        try:
+            df_kr = pd.read_excel(KROMOSOM_PATH)
+            id_to_nama = {
+                int(r['Kode.1']): str(r['Nama Mata Kuliah']).strip()
+                for _, r in df_databases[['Kode.1', 'Nama Mata Kuliah']].dropna().iterrows()
+                if str(r['Kode.1']).isdigit()
+            }
+            for m_id, grp in df_kr.groupby('Mata Kuliah'):
+                if int(m_id) in id_to_nama:
+                    matkul_sks[id_to_nama[int(m_id)]] = int(grp['SKS'].mode()[0])
+        except Exception:
+            pass
+        data['matkul_sks'] = matkul_sks
+
         return data
     except FileNotFoundError as e:
         st.sidebar.error(f"❌ File tidak ditemukan: {e}")

@@ -1,25 +1,27 @@
-"""
-Page 1: Input Data Jadwal Perkuliahan
-"""
+"""Halaman Input Data untuk menambah, mengimpor, dan mengelola daftar penugasan jadwal kuliah."""
+import importlib
 import pandas as pd
 import streamlit as st
 from config.settings import INPUT_IMAGE_PATH
-from utils.data_loader import load_databases, load_kromosom_data
+from utils.data_loader import load_databases
+from utils.storage import init_session_state, save_session_cache, clear_session_cache
+import components.header as _hdr
+import components.sidebar as _sb
+
+if getattr(_hdr, "_HEADER_REV", 0) < 22 or getattr(_sb, "_SIDEBAR_REV", 0) < 22:
+    importlib.reload(_hdr)
+    importlib.reload(_sb)
 from components.header import render_page_hero, render_footer
 from components.sidebar import render_input_sidebar
 
-# Page config
 st.set_page_config(
     page_title="Input Data - Genetic Scheduler",
     page_icon="📊",
     layout="wide",
 )
 
-# Initialize session state
-if "populasi_data" not in st.session_state:
-    st.session_state.populasi_data = {}
+init_session_state()
 
-# Hero Banner & Stepper
 render_page_hero(
     title="Input Data Penugasan Kuliah",
     subtitle=(
@@ -31,17 +33,15 @@ render_page_hero(
     active_step=1,
 )
 
-# Load databases
 databases = load_databases()
 
-# Sidebar input form
 submitted_sidebar = render_input_sidebar(databases)
 if submitted_sidebar:
     st.rerun()
 
 
 def _tambah_penugasan(dosen, matkul, prodi):
-    """Tambahkan 1 penugasan unik ke session_state.populasi_data."""
+    """Menambahkan satu penugasan unik (dosen, mata kuliah, prodi) ke dalam state populasi."""
     for existing in st.session_state.populasi_data.values():
         if existing[0] == dosen and existing[1] == matkul and existing[2] == prodi:
             return False, None
@@ -51,10 +51,11 @@ def _tambah_penugasan(dosen, matkul, prodi):
         next_idx += 1
         kode = f"C{next_idx}"
     st.session_state.populasi_data[kode] = [dosen, matkul, prodi]
+    save_session_cache()
     return True, kode
 
 
-# ========== MULTI-MODE INPUT TABS ==========
+# Tab metode input jadwal
 st.markdown('<div class="gs-section-title">📥 Metode Input Jadwal</div>', unsafe_allow_html=True)
 tab_manual, tab_excel, tab_sample = st.tabs(
     [
@@ -112,7 +113,6 @@ with tab_excel:
     if uploaded_file is not None:
         try:
             df_upload = pd.read_excel(uploaded_file)
-            # Dukung alias nama kolom umum (Dosen / Nama Dosen, Matkul / Mata Kuliah, Prodi)
             col_map = {}
             for c in df_upload.columns:
                 c_clean = str(c).strip().lower()
@@ -172,7 +172,7 @@ with tab_sample:
         "Gunakan fitur ini untuk memuat sampel penugasan nyata langsung dari dataset referensi (`Databases.xlsx` / `Kromosom.xlsx`) "
         "agar Anda dapat segera menguji performa Algoritma Genetika."
     )
-    sc1, sc2 = st.columns([2, 1])
+    sc1, sc2 = st.columns([2, 1], vertical_alignment="bottom")
     with sc1:
         sample_size = st.slider(
             "Jumlah Jadwal Sampel yang Ingin Dimuat",
@@ -183,8 +183,6 @@ with tab_sample:
             help="Pilih berapa banyak kombinasi penugasan unik yang akan ditambahkan otomatis",
         )
     with sc2:
-        st.write("")
-        st.write("")
         if st.button(f"⚡ Muat {sample_size} Jadwal Sampel", type="primary", width="stretch"):
             if databases is not None:
                 import random as _rnd
@@ -202,7 +200,7 @@ with tab_sample:
                 st.success(f"✅ Berhasil memuat {added} jadwal sampel ke dalam daftar!")
                 st.rerun()
 
-# ========== DATA TABLE & MANAGEMENT ==========
+# Tabel manajemen jadwal aktif
 st.markdown("---")
 st.markdown('<div class="gs-section-title">📌 Daftar Jadwal yang Akan Dioptimasi</div>', unsafe_allow_html=True)
 
@@ -223,7 +221,6 @@ else:
     )
     df.index.name = "Kode"
 
-    # KPI Metrics
     k1, k2, k3, k4 = st.columns(4)
     with k1:
         st.metric("📋 Total Jadwal", len(df))
@@ -234,7 +231,6 @@ else:
     with k4:
         st.metric("🎓 Prodi Unik", df["Prodi"].nunique())
 
-    # Search & Filter Controls
     f_col1, f_col2 = st.columns([2, 1])
     with f_col1:
         search_q = st.text_input(
@@ -263,7 +259,6 @@ else:
 
     st.dataframe(df_view, width="stretch", height=320)
 
-    # Action Toolbar: Delete single/multiple, Clear All, Download CSV
     act1, act2, act3 = st.columns([2, 1, 1])
     with act1:
         del_keys = st.multiselect(
@@ -275,11 +270,11 @@ else:
         if del_keys and st.button(f"🗑️ Hapus {len(del_keys)} Jadwal Terpilih", width="stretch"):
             for k in del_keys:
                 st.session_state.populasi_data.pop(k, None)
-            # Re-index kode C1..CN agar tetap rapi
             new_pop = {}
             for i, val in enumerate(st.session_state.populasi_data.values(), 1):
                 new_pop[f"C{i}"] = val
             st.session_state.populasi_data = new_pop
+            save_session_cache()
             st.rerun()
 
     with act2:
@@ -294,18 +289,18 @@ else:
 
     with act3:
         if st.button("🗑️ Hapus Semua Data", type="secondary", width="stretch"):
+            clear_session_cache()
             st.session_state.populasi_data = {}
             st.session_state.pop("ga_results", None)
             st.rerun()
 
-# Next Step Call-to-Action
 st.markdown("---")
-cta_col1, cta_col2 = st.columns([3.2, 1])
+cta_col1, cta_col2 = st.columns([3.2, 1], vertical_alignment="center")
 with cta_col1:
     if len(st.session_state.populasi_data) >= 2:
         st.markdown(
             f"""
-            <div style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; padding: 10px 16px; border-radius: 10px; font-size: 0.86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            <div style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; padding: 10px 16px; border-radius: 10px; font-size: 0.86rem; line-height: 1.45;">
                 ✅ <strong>{len(st.session_state.populasi_data)} jadwal siap dioptimasi!</strong> Lanjutkan ke halaman <strong>Run Algorithm</strong> untuk menjalankan proses evolusi.
             </div>
             """,
@@ -314,14 +309,15 @@ with cta_col1:
     else:
         st.markdown(
             """
-            <div style="background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; padding: 10px 16px; border-radius: 10px; font-size: 0.86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            <div style="background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; padding: 10px 16px; border-radius: 10px; font-size: 0.86rem; line-height: 1.45;">
                 ⚠️ Tambahkan minimal <strong>2 jadwal</strong> sebelum menjalankan Algoritma Genetika.
             </div>
             """,
             unsafe_allow_html=True,
         )
 with cta_col2:
+    st.markdown('<div class="gs-mobile-spacer"></div>', unsafe_allow_html=True)
     if st.button("🧬 Lanjut ke Run Algorithm", type="primary", width="stretch"):
-        st.switch_page("pages/2_🧬_Run_Algorithm.py")
+        st.switch_page("pages/2_🧬_run_algorithm.py")
 
 render_footer("Input Data")

@@ -1,6 +1,4 @@
-"""
-Modern Interactive Sidebar Component (Global Session Monitor + Quick Schedule Input)
-"""
+"""Komponen sidebar global untuk monitor sesi, input jadwal cepat, dan navigasi kembali."""
 import importlib
 import random
 import streamlit as st
@@ -10,10 +8,13 @@ if not hasattr(_hdr, "_main_shell_scope"):
     importlib.reload(_hdr)
 from components.header import _main_shell_scope
 from utils.data_loader import load_databases
+from utils.storage import save_session_cache
+
+_SIDEBAR_REV = 22
 
 
 def _render_sidebar_header_and_monitor():
-    """Render Brand Card & Live Session Monitor di bagian atas Sidebar (persistent shell)."""
+    """Merender kartu identitas aplikasi dan monitor status sesi di bagian atas sidebar."""
     pop_data = st.session_state.get("populasi_data", {})
     pop_count = len(pop_data)
     ga_results = st.session_state.get("ga_results")
@@ -40,7 +41,7 @@ def _render_sidebar_header_and_monitor():
                 <div class="gs-sb-brand-top">
                     <span class="gs-sb-brand-title">🧬 Genetic Scheduler</span>
                 </div>
-                <div class="gs-sb-brand-sub">AI Course Timetable Optimizer</div>
+                <div class="gs-sb-brand-sub">Course Timetable Optimizer</div>
             </div>
 
             <div class="gs-sb-card">
@@ -73,17 +74,15 @@ def _render_sidebar_header_and_monitor():
 
 
 def _render_quick_add_form(databases, expanded=True):
-    """Render form tambah jadwal cepat di sidebar."""
+    """Merender formulir tambah jadwal cepat dan tombol muat sampel di sidebar."""
     if databases is None:
         return False
 
     if "populasi_data" not in st.session_state:
         st.session_state.populasi_data = {}
 
-    container = st.sidebar.container() if expanded else st.sidebar.expander("➕ Tambah Jadwal Cepat", expanded=False)
+    container = st.sidebar.expander("➕ Tambah Jadwal Cepat", expanded=expanded)
     with container:
-        if expanded:
-            st.markdown("#### ➕ Tambah Jadwal Cepat")
         with st.form("sidebar_quick_input_form", clear_on_submit=False):
             dosen_options = databases["dosen"]
             matkul_options = databases["matkul"]
@@ -128,10 +127,10 @@ def _render_quick_add_form(databases, expanded=True):
                     kode = f"C{next_idx}"
 
                 st.session_state.populasi_data[kode] = [dosen, matkul, prodi]
+                save_session_cache()
                 st.success(f"✅ Jadwal {kode} ditambahkan!")
                 return True
 
-        # Tombol Muat 15 Sampel Instan di Sidebar jika belum ada data
         if len(st.session_state.populasi_data) < 5:
             if st.button("⚡ Muat 15 Sampel Instan", width="stretch", key="sb_quick_sample_btn"):
                 added = 0
@@ -149,16 +148,25 @@ def _render_quick_add_form(databases, expanded=True):
                             kode = f"C{next_idx}"
                         st.session_state.populasi_data[kode] = [d, m, p]
                         added += 1
+                if added > 0:
+                    save_session_cache()
                 return True
 
     return False
 
 
+def _render_back_to_landing_button():
+    """Merender tombol 'Kembali' di bagian paling bawah sidebar menuju halaman utama (/)."""
+    st.sidebar.markdown(
+        '<div style="margin-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.14); padding-top: 12px;"></div>',
+        unsafe_allow_html=True,
+    )
+    if st.sidebar.button("Kembali", icon=":material/arrow_back:", width="stretch", key="sb_back_to_landing_btn"):
+        st.switch_page("app.py")
+
+
 def render_global_sidebar(active_step=0, databases=None):
-    """
-    Render sidebar terpadu di semua halaman (dipanggil otomatis oleh render_page_hero
-    pada halaman selain Input Data, atau melalui render_input_sidebar pada halaman Input Data).
-    """
+    """Merender seluruh komponen sidebar global pada halaman Dashboard."""
     if st.session_state.get("_sb_rendered_this_run"):
         return False
     st.session_state["_sb_rendered_this_run"] = True
@@ -166,11 +174,15 @@ def render_global_sidebar(active_step=0, databases=None):
     _render_sidebar_header_and_monitor()
     if databases is None:
         databases = load_databases()
-    return _render_quick_add_form(databases, expanded=(active_step == 1))
+    added = _render_quick_add_form(databases, expanded=(active_step == 1))
+    _render_back_to_landing_button()
+    return added
 
 
 def render_input_sidebar(databases):
-    """Fungsi sidebar khusus halaman Input Data (kompatibel penuh dengan pemanggilan lama)."""
+    """Merender sidebar dengan formulir tambah jadwal terbuka untuk halaman Input Data."""
     st.session_state["_sb_rendered_this_run"] = True
     _render_sidebar_header_and_monitor()
-    return _render_quick_add_form(databases, expanded=True)
+    added = _render_quick_add_form(databases, expanded=True)
+    _render_back_to_landing_button()
+    return added

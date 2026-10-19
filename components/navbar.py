@@ -1,11 +1,9 @@
-"""
-Custom Navbar Component
-"""
+"""Komponen navigasi bar kustom."""
 import streamlit as st
 
+
 def render_navbar():
-    """Render custom navbar dengan HTML/CSS"""
-    
+    """Merender navigasi bar dengan HTML dan CSS."""
     st.markdown("""
     <style>
         .navbar {
@@ -15,20 +13,20 @@ def render_navbar():
             margin-bottom: 2rem;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        
+
         .navbar-brand {
             color: white !important;
             font-size: 24px;
             font-weight: bold;
             text-decoration: none;
         }
-        
+
         .nav-links {
             display: flex;
             gap: 2rem;
             margin-top: 1rem;
         }
-        
+
         .nav-link {
             color: white !important;
             text-decoration: none;
@@ -36,25 +34,26 @@ def render_navbar():
             border-radius: 5px;
             transition: background 0.3s;
         }
-        
+
         .nav-link:hover {
             background: rgba(255,255,255,0.2);
         }
-        
+
         .nav-link.active {
             background: rgba(255,255,255,0.3);
             font-weight: bold;
         }
     </style>
-    
+
     <div class="navbar">
         <div class="navbar-brand">🧬 Genetic Scheduler</div>
         <div class="nav-links">
             <a href="/" class="nav-link" target="_self">🏠 Home</a>
-            <a href="/Input_Data" class="nav-link" target="_self">📊 Input Data</a>
-            <a href="/Run_Algorithm" class="nav-link" target="_self">🧬 Run Algorithm</a>
-            <a href="/Results" class="nav-link" target="_self">📈 Results</a>
-            <a href="/Settings" class="nav-link" target="_self">⚙️ Settings</a>
+            <a href="/beranda" class="nav-link" target="_self">🏠 Beranda</a>
+            <a href="/input_data" class="nav-link" target="_self">📊 Input Data</a>
+            <a href="/run_algorithm" class="nav-link" target="_self">🧬 Run Algorithm</a>
+            <a href="/results" class="nav-link" target="_self">📈 Results</a>
+            <a href="/settings" class="nav-link" target="_self">⚙️ Settings</a>
         </div>
     </div>
     """, unsafe_allow_html=True)

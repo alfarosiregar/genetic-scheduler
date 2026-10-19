@@ -1,9 +1,9 @@
-"""Konfigurasi aplikasi"""
+"""Konfigurasi global path file, pemetaan kolom database, dan pengaturan halaman."""
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Path files (relatif terhadap root folder genetic-scheduler, aman dijalankan dari CWD mana pun)
+# Lokasi file database dan aset gambar
 DATABASE_PATH = str(BASE_DIR / 'mnt' / 'db' / 'Databases.xlsx')
 KROMOSOM_PATH = str(BASE_DIR / 'mnt' / 'db' / 'Kromosom.xlsx')
 APP_IMAGE_PATH = str(BASE_DIR / 'mnt' / 'img' / 'schedule_image.jpg')
@@ -11,21 +11,21 @@ INPUT_IMAGE_PATH = str(BASE_DIR / 'mnt' / 'img' / 'input_page_image.jpg')
 RUN_IMAGE_PATH = str(BASE_DIR / 'mnt' / 'img' / 'run_page_image.jpg')
 RESULT_IMAGE_PATH = str(BASE_DIR / 'mnt' / 'img' / 'result_page_image.jpg')
 SETTING_IMAGE_PATH = str(BASE_DIR / 'mnt' / 'img' / 'settings_page_image.jpg')
+SESSION_CACHE_PATH = str(BASE_DIR / 'mnt' / 'db' / 'session_cache.json')
 
-# Kolom mapping untuk Databases.xlsx
+# Indeks kolom pada Databases.xlsx (0-indexed)
 COLUMN_MAPPING = {
-    'dosen': 1,      # Kolom B
-    'matkul': 4,     # Kolom E
-    'sks': 16,       # Kolom Q
-    'prodi': 7,      # Kolom H
-    'kelas': 10,     # Kolom K
-    'hari': 13,      # Kolom N
-    'waktu': 19,     # Kolom T
-    'ruangan': 22,   # Kolom W
-    'blok': 25       # Kolom Z
+    'dosen': 1,
+    'matkul': 4,
+    'sks': 16,
+    'prodi': 7,
+    'kelas': 10,
+    'hari': 13,
+    'waktu': 19,
+    'ruangan': 22,
+    'blok': 25
 }
 
-# Page config
 PAGE_TITLE = "Genetic Scheduler"
 PAGE_ICON = "🧬"
 LAYOUT = "wide"

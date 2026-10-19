@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Genetic Scheduler — Sistem Penjadwalan Kuliah</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧬</text></svg>" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#EEF2FF',
+              100: '#E0E7FF',
+              500: '#6366F1',
+              600: '#4F46E5',
+              700: '#4338CA',
+              900: '#1E1B4B',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #F8FAFC;
+      color: #0F172A;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, h4, .font-display {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .subtle-grid {
+      background-image: radial-gradient(#CBD5E1 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-brand-600 selection:text-white">
+
+  <!-- Navigasi Utama -->
+  <header class="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-slate-200/80">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <a href="#top" class="flex items-center gap-2.5 group">
+        <span class="text-2xl leading-none select-none" aria-hidden="true">🧬</span>
+        <span class="font-display font-bold text-base tracking-tight text-slate-900">Genetic Scheduler</span>
+      </a>
+
+      <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+        <a href="#database" class="hover:text-slate-900 transition-colors">Ringkasan Data</a>
+        <a href="#fitur" class="hover:text-slate-900 transition-colors">Fitur Utama</a>
+        <a href="#alur" class="hover:text-slate-900 transition-colors">Alur Kerja</a>
+      </nav>
+
+      <div class="hidden md:flex items-center gap-3">
+        <a data-dashboard-route="beranda" href="/beranda" target="_top"
+           class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-brand-900 hover:bg-brand-600 transition-colors shadow-sm">
+          <span>Buka Dashboard</span>
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14"></path>
+            <path d="m12 5 7 7-7 7"></path>
+          </svg>
+        </a>
+      </div>
+
+      <button id="mobileMenuBtn" type="button" aria-label="Buka Menu"
+              class="md:hidden inline-flex items-center justify-center p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+        <svg id="menuIconOpen" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+        <svg id="menuIconClose" class="w-5 h-5 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <div id="mobileMenuPanel" class="hidden md:hidden bg-white border-b border-slate-200 px-4 pt-2 pb-4 space-y-2">
+      <a href="#database" class="mobile-link block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50">Ringkasan Data</a>
+      <a href="#fitur" class="mobile-link block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50">Fitur Utama</a>
+      <a href="#alur" class="mobile-link block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50">Alur Kerja</a>
+      <div class="pt-2">
+        <a data-dashboard-route="beranda" href="/beranda" target="_top"
+           class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-brand-900 hover:bg-brand-600 transition-colors">
+          <span>Buka Dashboard</span>
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14"></path>
+            <path d="m12 5 7 7-7 7"></path>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top" class="flex-1">
+    <!-- Hero & Ringkasan Data -->
+    <section id="database" class="relative overflow-hidden border-b border-slate-200/80 bg-white">
+      <div class="absolute inset-0 subtle-grid opacity-40 pointer-events-none"></div>
+      <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 lg:py-24">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+
+          <div class="lg:col-span-7">
+            <h1 class="font-display text-3xl sm:text-4xl lg:text-[2.75rem] font-extrabold text-slate-900 tracking-tight leading-[1.15] mb-5">
+              Susun jadwal perkuliahan otomatis dengan <span class="text-brand-600">optimasi waktu dan ruangan</span>.
+            </h1>
+
+            <p class="text-slate-600 text-base sm:text-lg leading-relaxed max-w-xl mb-8">
+              Cukup masukkan daftar dosen, mata kuliah, dan program studi. Sistem akan mengatur hari, jam belajar, jumlah SKS, serta ruangan yang paling tepat secara otomatis dalam hitungan detik.
+            </p>
+
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <a data-dashboard-route="beranda" href="/beranda" target="_top"
+                 class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white bg-brand-900 hover:bg-brand-600 transition-all shadow-sm">
+                <span>Buka Dashboard</span>
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h14"></path>
+                  <path d="m12 5 7 7-7 7"></path>
+                </svg>
+              </a>
+              <a data-dashboard-route="input_data" href="/input_data" target="_top"
+                 class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 transition-all">
+                <span>Mulai Input Data</span>
+              </a>
+            </div>
+
+            <div class="mt-10 pt-8 border-t border-slate-200/80 grid grid-cols-2 sm:grid-cols-4 gap-6">
+              <div>
+                <div class="font-display text-2xl font-bold text-slate-900">{{N_DOSEN}}</div>
+                <div class="text-xs text-slate-500 mt-0.5">Dosen Pengajar</div>
+              </div>
+              <div>
+                <div class="font-display text-2xl font-bold text-slate-900">{{N_MATKUL}}</div>
+                <div class="text-xs text-slate-500 mt-0.5">Mata Kuliah</div>
+              </div>
+              <div>
+                <div class="font-display text-2xl font-bold text-slate-900">{{N_RUANGAN}}</div>
+                <div class="text-xs text-slate-500 mt-0.5">Ruangan Kuliah</div>
+              </div>
+              <div>
+                <div class="font-display text-2xl font-bold text-slate-900">{{N_WAKTU}}</div>
+                <div class="text-xs text-slate-500 mt-0.5">Pilihan Jam Kuliah</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-5">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-900/5 overflow-hidden">
+              <div class="px-5 py-4 bg-brand-900 text-white flex items-center justify-between">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="flex gap-1.5 shrink-0">
+                    <span class="w-2.5 h-2.5 rounded-full bg-white/25"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-white/25"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-white/25"></span>
+                  </div>
+                  <span class="text-xs font-mono text-indigo-200 ml-1 truncate">rekomendasi_jadwal_kuliah.xlsx</span>
+                </div>
+              </div>
+
+              <div class="p-5 space-y-3">
+                <div class="flex items-center justify-between text-xs text-slate-500 pb-2 border-b border-slate-100">
+                  <span>Contoh Jadwal Kuliah Teratur</span>
+                  <span class="text-emerald-600 font-medium">Siap Digunakan</span>
+                </div>
+
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex items-center justify-between gap-3">
+                  <div class="min-w-0">
+                    <div class="text-xs font-semibold text-slate-900 truncate">Algoritma Optimasi dan Metaheuritik</div>
+                    <div class="text-[11px] text-slate-500 mt-0.5 truncate">Adidtya Perdana, S.T., M.Kom · Prodi PSB</div>
+                    <div class="text-[11px] text-brand-600 font-medium mt-0.5">Senin · 08.00-09.40 · 3.0 SKS</div>
+                  </div>
+                  <span class="shrink-0 font-mono text-[11px] font-medium px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700">
+                    77.3.01B
+                  </span>
+                </div>
+
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex items-center justify-between gap-3">
+                  <div class="min-w-0">
+                    <div class="text-xs font-semibold text-slate-900 truncate">Analisis Multivariat</div>
+                    <div class="text-[11px] text-slate-500 mt-0.5 truncate">Abil Mansyur, Dr., M.Si · Prodi MESP</div>
+                    <div class="text-[11px] text-brand-600 font-medium mt-0.5">Selasa · 09.00-12.10 · 3.0 SKS</div>
+                  </div>
+                  <span class="shrink-0 font-mono text-[11px] font-medium px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700">
+                    77.1.01
+                  </span>
+                </div>
+
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex items-center justify-between gap-3">
+                  <div class="min-w-0">
+                    <div class="text-xs font-semibold text-slate-900 truncate">Analisis Data Kategorik</div>
+                    <div class="text-[11px] text-slate-500 mt-0.5 truncate">Ade Andriani, S.Pd., M.Pd · Prodi BESP</div>
+                    <div class="text-[11px] text-brand-600 font-medium mt-0.5">Rabu · 08.00–10.30 · 2.0 SKS</div>
+                  </div>
+                  <span class="shrink-0 font-mono text-[11px] font-medium px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700">
+                    12.1.09
+                  </span>
+                </div>
+
+                <div class="pt-2 flex items-center justify-between text-xs text-slate-500">
+                  <span>{{N_PRODI}} Program Studi · Senin–Jumat</span>
+                  <span class="text-brand-600 font-medium">{{N_REF}} Data Jadwal</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Fitur Utama -->
+    <section id="fitur" class="py-16 sm:py-20 bg-slate-50">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-2xl mx-auto text-center mb-12">
+          <h2 class="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+            Memudahkan penyusunan jadwal kuliah
+          </h2>
+          <p class="text-slate-600 text-sm sm:text-base mt-2">
+            Dirancang agar jadwal perkuliahan dapat tersusun dengan cepat, rapi, dan tanpa perlu mengecek bentrok satu per satu.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm">
+            <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mb-5">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </div>
+            <h3 class="font-display text-base font-bold text-slate-900 mb-2">Cegah Jadwal Bentrok Otomatis</h3>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              Memastikan tidak ada dua mata kuliah yang memakai ruangan yang sama atau dosen yang mengajar di dua kelas pada jam yang bertabrakan.
+            </p>
+          </div>
+
+          <div class="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm">
+            <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mb-5">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v4"></path>
+                <path d="m16.2 7.8 2.9-2.9"></path>
+                <path d="M18 12h4"></path>
+                <path d="m16.2 16.2 2.9 2.9"></path>
+                <path d="M12 18v4"></path>
+                <path d="m4.9 19.1 2.9-2.9"></path>
+                <path d="M2 12h4"></path>
+                <path d="m4.9 4.9 2.9 2.9"></path>
+              </svg>
+            </div>
+            <h3 class="font-display text-base font-bold text-slate-900 mb-2">Penempatan Hari &amp; Ruang Otomatis</h3>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              Menentukan kombinasi hari, jam belajar, jumlah SKS, dan ruangan terbaik untuk setiap dosen dan mata kuliah yang terdaftar.
+            </p>
+          </div>
+
+          <div class="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm">
+            <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mb-5">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+            </div>
+            <h3 class="font-display text-base font-bold text-slate-900 mb-2">Tampilan Kalender &amp; Unduh Excel</h3>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              Lihat hasil jadwal yang sudah tersusun rapi dari hari Senin hingga Jumat dan langsung unduh dalam bentuk file Excel maupun CSV.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Langkah Penggunaan -->
+    <section id="alur" class="py-16 sm:py-20 bg-white border-t border-slate-200/80">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-2xl mx-auto text-center mb-12">
+          <h2 class="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+            Langkah Penggunaan
+          </h2>
+          <p class="text-slate-600 text-sm sm:text-base mt-2">
+            Empat langkah mudah untuk menyusun jadwal perkuliahan dari awal hingga siap diunduh.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <a data-dashboard-route="input_data" href="/input_data" target="_top"
+             class="group p-5 rounded-2xl bg-slate-50 hover:bg-white border border-slate-200/90 hover:border-brand-500/50 hover:shadow-md transition-all flex flex-col justify-between">
+            <div>
+              <span class="font-mono text-xs font-semibold text-brand-600">01</span>
+              <h3 class="font-display text-base font-bold text-slate-900 mt-2 mb-1.5 group-hover:text-brand-600 transition-colors">
+                Masukkan Data Kuliah
+              </h3>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Tambahkan daftar dosen, mata kuliah, dan program studi secara manual atau unggah dari file Excel.
+              </p>
+            </div>
+            <div class="mt-5 text-xs font-semibold text-slate-500 group-hover:text-brand-600 flex items-center gap-1">
+              <span>Buka Input Data</span>
+              <span>→</span>
+            </div>
+          </a>
+
+          <a data-dashboard-route="run_algorithm" href="/run_algorithm" target="_top"
+             class="group p-5 rounded-2xl bg-slate-50 hover:bg-white border border-slate-200/90 hover:border-brand-500/50 hover:shadow-md transition-all flex flex-col justify-between">
+            <div>
+              <span class="font-mono text-xs font-semibold text-brand-600">02</span>
+              <h3 class="font-display text-base font-bold text-slate-900 mt-2 mb-1.5 group-hover:text-brand-600 transition-colors">
+                Susun Jadwal Otomatis
+              </h3>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Mulai proses penyusunan jadwal otomatis hanya dengan satu klik hingga tidak ada jadwal yang bentrok.
+              </p>
+            </div>
+            <div class="mt-5 text-xs font-semibold text-slate-500 group-hover:text-brand-600 flex items-center gap-1">
+              <span>Buka Penyusunan Jadwal</span>
+              <span>→</span>
+            </div>
+          </a>
+
+          <a data-dashboard-route="results" href="/results" target="_top"
+             class="group p-5 rounded-2xl bg-slate-50 hover:bg-white border border-slate-200/90 hover:border-brand-500/50 hover:shadow-md transition-all flex flex-col justify-between">
+            <div>
+              <span class="font-mono text-xs font-semibold text-brand-600">03</span>
+              <h3 class="font-display text-base font-bold text-slate-900 mt-2 mb-1.5 group-hover:text-brand-600 transition-colors">
+                Lihat &amp; Unduh Jadwal
+              </h3>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Periksa jadwal mingguan yang sudah tersusun rapi dan unduh laporannya ke dalam file Excel.
+              </p>
+            </div>
+            <div class="mt-5 text-xs font-semibold text-slate-500 group-hover:text-brand-600 flex items-center gap-1">
+              <span>Buka Hasil Jadwal</span>
+              <span>→</span>
+            </div>
+          </a>
+
+          <a data-dashboard-route="settings" href="/settings" target="_top"
+             class="group p-5 rounded-2xl bg-slate-50 hover:bg-white border border-slate-200/90 hover:border-brand-500/50 hover:shadow-md transition-all flex flex-col justify-between">
+            <div>
+              <span class="font-mono text-xs font-semibold text-brand-600">04</span>
+              <h3 class="font-display text-base font-bold text-slate-900 mt-2 mb-1.5 group-hover:text-brand-600 transition-colors">
+                Pengaturan Sistem
+              </h3>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Sesuaikan preferensi penyusunan jadwal dan periksa kelengkapan data dosen, ruang, serta jam kuliah.
+              </p>
+            </div>
+            <div class="mt-5 text-xs font-semibold text-slate-500 group-hover:text-brand-600 flex items-center gap-1">
+              <span>Buka Pengaturan</span>
+              <span>→</span>
+            </div>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200/80 py-6">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+      <div class="flex items-center gap-1.5">
+        <span class="text-base leading-none select-none" aria-hidden="true">🧬</span>
+        <span><strong class="font-semibold text-slate-800">Genetic Scheduler</strong> · Aplikasi Penyusunan Jadwal Perkuliahan Otomatis</span>
+      </div>
+      <div class="flex flex-wrap items-center gap-5">
+        <a data-dashboard-route="beranda" href="/beranda" class="hover:text-slate-900 transition-colors cursor-pointer">Beranda</a>
+        <a data-dashboard-route="input_data" href="/input_data" class="hover:text-slate-900 transition-colors cursor-pointer">Input Data</a>
+        <a data-dashboard-route="run_algorithm" href="/run_algorithm" class="hover:text-slate-900 transition-colors cursor-pointer">Susun Jadwal</a>
+        <a data-dashboard-route="results" href="/results" class="hover:text-slate-900 transition-colors cursor-pointer">Hasil Jadwal</a>
+        <a data-dashboard-route="settings" href="/settings" class="hover:text-slate-900 transition-colors cursor-pointer">Pengaturan</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Toggle menu navigasi mobile
+    const mobileBtn = document.getElementById('mobileMenuBtn');
+    const mobilePanel = document.getElementById('mobileMenuPanel');
+    const iconOpen = document.getElementById('menuIconOpen');
+    const iconClose = document.getElementById('menuIconClose');
+
+    function closeMobileMenu() {
+      if (mobilePanel && iconOpen && iconClose) {
+        mobilePanel.classList.add('hidden');
+        iconOpen.classList.remove('hidden');
+        iconClose.classList.add('hidden');
+      }
+    }
+
+    if (mobileBtn && mobilePanel) {
+      mobileBtn.addEventListener('click', () => {
+        const isHidden = mobilePanel.classList.contains('hidden');
+        mobilePanel.classList.toggle('hidden', !isHidden);
+        iconOpen.classList.toggle('hidden', isHidden);
+        iconClose.classList.toggle('hidden', !isHidden);
+      });
+    }
+
+    // Smooth scroll untuk tautan section internal
+    document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+      anchor.addEventListener('click', (e) => {
+        const href = anchor.getAttribute('href');
+        if (!href || href === '#') return;
+        e.preventDefault();
+        closeMobileMenu();
+
+        if (href === '#top' || href === '#database') {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
+        const targetEl = document.querySelector(href);
+        if (targetEl) {
+          const headerOffset = 72;
+          const rect = targetEl.getBoundingClientRect();
+          const offsetTop = rect.top + window.pageYOffset - headerOffset;
+          window.scrollTo({ top: Math.max(0, offsetTop), behavior: 'smooth' });
+        }
+      });
+    });
+
+    // Navigasi SPA menuju halaman Dashboard Streamlit
+    function navigateToDashboard(route) {
+      closeMobileMenu();
+      try {
+        const parentWin = window.parent || window.top || window;
+        const parentDoc = parentWin.document;
+
+        const pageLinks = parentDoc.querySelectorAll('[data-testid="stPageLink-NavLink"]');
+        for (const link of pageLinks) {
+          const href = link.getAttribute('href') || '';
+          const text = (link.textContent || '').trim();
+          if (
+            text === 'nav_' + route ||
+            href.toLowerCase().endsWith('/' + route.toLowerCase()) ||
+            href.toLowerCase() === route.toLowerCase()
+          ) {
+            link.click();
+            return;
+          }
+        }
+
+        const sidebarLinks = parentDoc.querySelectorAll('[data-testid="stSidebarNavItems"] a');
+        for (const link of sidebarLinks) {
+          const href = link.getAttribute('href') || '';
+          if (href.toLowerCase().endsWith('/' + route.toLowerCase())) {
+            link.click();
+            return;
+          }
+        }
+
+        const topLoc = parentWin.location;
+        let basePath = topLoc.pathname || '/';
+        basePath = basePath.replace(/\/(beranda|input_data|run_algorithm|results|settings)\/?$/i, '');
+        if (!basePath.endsWith('/')) basePath += '/';
+        const targetUrl = topLoc.origin + basePath + route;
+
+        if (typeof parentWin.Function === 'function') {
+          parentWin.setTimeout(new parentWin.Function('window.location.assign(' + JSON.stringify(targetUrl) + ')'), 0);
+        } else {
+          window.open(targetUrl, '_top');
+        }
+      } catch (err) {
+        window.location.href = '/' + route;
+      }
+    }
+
+    document.querySelectorAll('[data-dashboard-route]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        const route = el.getAttribute('data-dashboard-route');
+        if (route) {
+          navigateToDashboard(route);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

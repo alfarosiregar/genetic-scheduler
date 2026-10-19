@@ -37,3 +37,6 @@ Thumbs.db
 *.zip
 *.rar
 *.tar.gz
+
+# Runtime session cache
+mnt/

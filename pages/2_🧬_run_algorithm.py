@@ -1,13 +1,19 @@
-"""
-Page 2: Jalankan Algoritma Genetika
-"""
+"""Halaman konfigurasi parameter dan eksekusi optimasi Algoritma Genetika."""
+import importlib
 import time
 import altair as alt
 import pandas as pd
 import streamlit as st
 from config.settings import RUN_IMAGE_PATH
 from utils.data_loader import load_databases
+import components.header as _hdr
+import components.sidebar as _sb
+
+if getattr(_hdr, "_HEADER_REV", 0) < 22 or getattr(_sb, "_SIDEBAR_REV", 0) < 22:
+    importlib.reload(_hdr)
+    importlib.reload(_sb)
 from components.header import render_page_hero, render_footer
+from utils.storage import init_session_state, save_session_cache
 from utils.genetic_algorithm import (
     run_genetic_algorithm,
     get_summary_stats,
@@ -20,19 +26,8 @@ st.set_page_config(
     layout="wide",
 )
 
-# ========== INITIALIZE SESSION STATE ==========
-if "ga_config" not in st.session_state:
-    st.session_state.ga_config = {
-        "generations": 20,
-        "mutation_rate": 0.15,
-        "crossover_rate": 0.80,
-        "early_stopping": True,
-        "patience": 5,
-        "use_seed": False,
-        "seed_value": 42,
-    }
+init_session_state()
 
-# Hero Banner & Stepper
 render_page_hero(
     title="Eksekusi Optimasi Algoritma Genetika",
     subtitle=(
@@ -44,7 +39,6 @@ render_page_hero(
     active_step=2,
 )
 
-# Check if data exists
 if "populasi_data" not in st.session_state or len(st.session_state.populasi_data) < 2:
     st.markdown(
         """
@@ -66,14 +60,12 @@ if "populasi_data" not in st.session_state or len(st.session_state.populasi_data
         )
     with c_back2:
         if st.button("📊 Buka Input Data", type="primary", width="stretch"):
-            st.switch_page("pages/1_📊_Input_Data.py")
+            st.switch_page("pages/1_📊_input_data.py")
     render_footer("Run Algorithm")
     st.stop()
 
-# Load databases
 databases = load_databases()
 
-# Dataset Overview Expander
 df_input = pd.DataFrame.from_dict(
     st.session_state.populasi_data,
     orient="index",
@@ -84,7 +76,7 @@ df_input.index.name = "Kode"
 with st.expander(f"📋 Pratinjau Dataset Aktif ({len(df_input)} Jadwal Siap Dioptimasi)", expanded=len(df_input) > 0):
     st.dataframe(df_input, width="stretch", height=240)
 
-# ========== PARAMETER PRESETS ==========
+# Preset parameter cepat
 st.markdown('<div class="gs-section-title">⚡ Preset Parameter Cepat</div>', unsafe_allow_html=True)
 p_col1, p_col2, p_col3 = st.columns(3)
 with p_col1:
@@ -106,7 +98,7 @@ with p_col3:
         )
         st.rerun()
 
-# ========== ALGORITHM PARAMETERS ==========
+# Input parameter Algoritma Genetika
 st.markdown('<div class="gs-section-title">⚙️ Konfigurasi Parameter Algoritma Genetika</div>', unsafe_allow_html=True)
 
 col1, col2, col3, col4 = st.columns(4)
@@ -160,7 +152,7 @@ with col4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ========== RUN BUTTON ==========
+# Eksekusi proses optimasi
 if st.button("🚀 Jalankan Optimasi Algoritma Genetika Sekarang", type="primary", width="stretch"):
     progress_bar = st.progress(0)
     status_text = st.empty()
@@ -187,15 +179,15 @@ if st.button("🚀 Jalankan Optimasi Algoritma Genetika Sekarang", type="primary
         results["elapsed_ms"] = elapsed_ms
 
         progress_bar.progress(100)
-        status_text.empty()
         st.session_state.ga_results = results
+        save_session_cache()
         st.rerun()
 
     except Exception as e:
         st.error(f"❌ Terjadi kesalahan saat menjalankan algoritma: {str(e)}")
         st.stop()
 
-# ========== DISPLAY RESULTS FROM SESSION STATE ==========
+# Tampilan ringkasan hasil optimasi
 if "ga_results" in st.session_state and st.session_state.ga_results is not None:
     st.markdown("---")
     results = st.session_state.ga_results
@@ -205,7 +197,7 @@ if "ga_results" in st.session_state and st.session_state.ga_results is not None:
     if stats["reached_optimal"]:
         st.markdown(
             f"""
-            <div class="gs-banner-success" style="font-size: 0.88rem; padding: 14px 20px; white-space: nowrap; gap: 12px;">
+            <div class="gs-banner-success" style="font-size: 0.88rem; padding: 14px 20px; gap: 12px;">
                 <span>🎉 SOLUSI OPTIMAL TERCAPAI! Seluruh jadwal bebas konflik (Fitness = 1.0000) dalam {results['total_generations']} generasi.</span>
                 <span style="flex-shrink: 0;">⚡ {elapsed_ms} ms</span>
             </div>
@@ -215,7 +207,7 @@ if "ga_results" in st.session_state and st.session_state.ga_results is not None:
     else:
         st.markdown(
             f"""
-            <div class="gs-banner-warn" style="font-size: 0.88rem; padding: 14px 20px; white-space: nowrap; gap: 12px;">
+            <div class="gs-banner-warn" style="font-size: 0.88rem; padding: 14px 20px; gap: 12px;">
                 <span>📈 Evolusi selesai ({results['total_generations']} generasi). Tersisa {stats['final_konflik']} konflik dari {stats['initial_konflik']} konflik awal.</span>
                 <span style="flex-shrink: 0;">⚡ {elapsed_ms} ms</span>
             </div>
@@ -235,38 +227,37 @@ if "ga_results" in st.session_state and st.session_state.ga_results is not None:
 
     st.markdown(
         f"""
-        <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; align-items: stretch; margin-bottom: 0.75rem;">
-            <div class="gs-card" style="padding: 14px 16px; border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
-                <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">🎯 Fitness Awal</div>
-                <div style="font-size: 1.35rem; font-weight: 800; color: #0F172A; line-height: 1.2;">{fit_awal_str}</div>
-                <div style="font-size: 0.74rem; color: #64748B; margin-top: 6px;">Generasi 0</div>
+        <div class="gs-grid-5">
+            <div class="gs-card gs-kpi-card">
+                <div class="gs-kpi-label">🎯 Fitness Awal</div>
+                <div class="gs-kpi-value" style="font-size: 1.35rem;">{fit_awal_str}</div>
+                <div class="gs-kpi-sub">Generasi 0</div>
             </div>
-            <div class="gs-card" style="padding: 14px 16px; border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
-                <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">🏆 Fitness Akhir</div>
-                <div style="font-size: 1.35rem; font-weight: 800; color: #0F172A; line-height: 1.2;">{fit_akhir_str}</div>
-                <div style="font-size: 0.74rem; font-weight: 600; color: #059669; margin-top: 6px;">▲ {fit_delta_str}</div>
+            <div class="gs-card gs-kpi-card">
+                <div class="gs-kpi-label">🏆 Fitness Akhir</div>
+                <div class="gs-kpi-value" style="font-size: 1.35rem;">{fit_akhir_str}</div>
+                <div class="gs-kpi-sub" style="font-weight: 600; color: #059669;">▲ {fit_delta_str}</div>
             </div>
-            <div class="gs-card" style="padding: 14px 16px; border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
-                <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">⚠️ Konflik Awal</div>
-                <div style="font-size: 1.35rem; font-weight: 800; color: #0F172A; line-height: 1.2;">{konf_awal_val}</div>
-                <div style="font-size: 0.74rem; color: #64748B; margin-top: 6px;">Sebelum Optimasi</div>
+            <div class="gs-card gs-kpi-card">
+                <div class="gs-kpi-label">⚠️ Konflik Awal</div>
+                <div class="gs-kpi-value" style="font-size: 1.35rem;">{konf_awal_val}</div>
+                <div class="gs-kpi-sub">Sebelum Optimasi</div>
             </div>
-            <div class="gs-card" style="padding: 14px 16px; border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
-                <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">✅ Konflik Akhir</div>
-                <div style="font-size: 1.35rem; font-weight: 800; color: #0F172A; line-height: 1.2;">{konf_akhir_val}</div>
-                <div style="font-size: 0.74rem; font-weight: 600; color: #059669; margin-top: 6px;">▼ {konf_delta_str}</div>
+            <div class="gs-card gs-kpi-card">
+                <div class="gs-kpi-label">✅ Konflik Akhir</div>
+                <div class="gs-kpi-value" style="font-size: 1.35rem;">{konf_akhir_val}</div>
+                <div class="gs-kpi-sub" style="font-weight: 600; color: #059669;">▼ {konf_delta_str}</div>
             </div>
-            <div class="gs-card" style="padding: 14px 16px; border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
-                <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">🔄 Siklus Evolusi</div>
-                <div style="font-size: 1.35rem; font-weight: 800; color: #0F172A; line-height: 1.2;">{gen_str}</div>
-                <div style="font-size: 0.74rem; color: #64748B; margin-top: 6px;">Waktu: {elapsed_ms} ms</div>
+            <div class="gs-card gs-kpi-card">
+                <div class="gs-kpi-label">🔄 Siklus Evolusi</div>
+                <div class="gs-kpi-value" style="font-size: 1.35rem;">{gen_str}</div>
+                <div class="gs-kpi-sub">Waktu: {elapsed_ms} ms</div>
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # Dual Interactive Charts (Fitness & Conflict)
     st.markdown('<div class="gs-section-title">📈 Kurva Konvergensi Evolusi</div>', unsafe_allow_html=True)
     ch_col1, ch_col2 = st.columns(2)
 
@@ -349,7 +340,7 @@ if "ga_results" in st.session_state and st.session_state.ga_results is not None:
             )
 
     st.markdown("---")
-    r_col1, r_col2 = st.columns([3, 1])
+    r_col1, r_col2 = st.columns([3, 1], vertical_alignment="center")
     with r_col1:
         st.markdown(
             """
@@ -361,7 +352,8 @@ if "ga_results" in st.session_state and st.session_state.ga_results is not None:
             unsafe_allow_html=True,
         )
     with r_col2:
+        st.markdown('<div class="gs-mobile-spacer"></div>', unsafe_allow_html=True)
         if st.button("📈 Buka Analisis Lengkap (Results)", type="primary", width="stretch"):
-            st.switch_page("pages/3_📈_Results.py")
+            st.switch_page("pages/3_📈_results.py")
 
 render_footer("Run Algorithm")

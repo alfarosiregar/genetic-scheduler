@@ -1,11 +1,16 @@
-"""
-Page 3: Hasil Optimasi, Kalender Mingguan, dan Analisis Lengkap
-"""
+"""Halaman Hasil Optimasi, Kalender Mingguan, Grafik Evolusi, dan Ekspor Laporan."""
+import importlib
 from io import BytesIO
 import altair as alt
 import pandas as pd
 import streamlit as st
 from config.settings import RESULT_IMAGE_PATH
+import components.header as _hdr
+import components.sidebar as _sb
+
+if getattr(_hdr, "_HEADER_REV", 0) < 22 or getattr(_sb, "_SIDEBAR_REV", 0) < 22:
+    importlib.reload(_hdr)
+    importlib.reload(_sb)
 from components.header import render_page_hero, render_footer
 from utils.genetic_algorithm import (
     get_summary_stats,
@@ -13,15 +18,17 @@ from utils.genetic_algorithm import (
     buat_tabel_rekomendasi_jadwal,
     parse_waktu,
 )
+from utils.pdf_generator import generate_weekly_calendar_pdf
+from utils.storage import init_session_state
 
-# ========== PAGE CONFIG ==========
 st.set_page_config(
     page_title="Results - Genetic Scheduler",
     page_icon="📈",
     layout="wide",
 )
 
-# Hero Banner & Stepper
+init_session_state()
+
 render_page_hero(
     title="Hasil Optimasi & Kalender Jadwal Perkuliahan",
     subtitle=(
@@ -33,7 +40,6 @@ render_page_hero(
     active_step=3,
 )
 
-# ========== CHECK IF RESULTS EXIST ==========
 if "ga_results" not in st.session_state or st.session_state.ga_results is None:
     st.markdown(
         """
@@ -55,23 +61,21 @@ if "ga_results" not in st.session_state or st.session_state.ga_results is None:
         )
     with c2:
         if st.button("🧬 Buka Run Algorithm", type="primary", width="stretch"):
-            st.switch_page("pages/2_🧬_Run_Algorithm.py")
+            st.switch_page("pages/2_🧬_run_algorithm.py")
     render_footer("Results")
     st.stop()
 
-# ========== LOAD RESULTS ==========
 results = st.session_state.ga_results
 stats = get_summary_stats(results)
 tabel_rekomendasi = buat_tabel_rekomendasi_jadwal(results)
 df_rekomendasi = pd.DataFrame(tabel_rekomendasi)
 
-# ========== EXECUTIVE SUMMARY ==========
+# Ringkasan eksekutif hasil optimasi
 if stats["reached_optimal"]:
     st.markdown(
         """
-        <div class="gs-banner-success" style="font-size: 0.88rem; padding: 14px 20px; white-space: nowrap; gap: 12px;">
+        <div class="gs-banner-success" style="font-size: 0.88rem; padding: 14px 20px; gap: 12px;">
             <span>🎉 SEMPURNA! Seluruh jadwal perkuliahan telah OPTIMAL (0 Konflik · Fitness 1.0000) dan siap digunakan!</span>
-            <span style="flex-shrink: 0;">✅ READY FOR DEPLOYMENT</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -79,7 +83,7 @@ if stats["reached_optimal"]:
 else:
     st.markdown(
         f"""
-        <div class="gs-banner-warn" style="font-size: 0.88rem; padding: 14px 20px; white-space: nowrap; gap: 12px;">
+        <div class="gs-banner-warn" style="font-size: 0.88rem; padding: 14px 20px; gap: 12px;">
             <span>⚠️ Jadwal Suboptimal: Masih terdapat {stats['final_konflik']} konflik yang perlu ditinjau atau dioptimasi ulang.</span>
             <span style="flex-shrink: 0;">⚠️ PERLU EVALUASI</span>
         </div>
@@ -100,38 +104,37 @@ total_jadwal = len(df_rekomendasi)
 
 st.markdown(
     f"""
-    <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; align-items: stretch; margin-bottom: 1.25rem;">
-        <div class="gs-card" style="padding: 14px 16px; border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
-            <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">🔄 Generasi Dijalankan</div>
-            <div style="font-size: 1.35rem; font-weight: 800; color: #0F172A; line-height: 1.2;">{results['total_generations']} Generasi</div>
-            <div style="font-size: 0.74rem; color: #64748B; margin-top: 6px;">Siklus Evolusi</div>
+    <div class="gs-grid-5">
+        <div class="gs-card gs-kpi-card">
+            <div class="gs-kpi-label">🔄 Generasi Dijalankan</div>
+            <div class="gs-kpi-value" style="font-size: 1.35rem;">{results['total_generations']} Generasi</div>
+            <div class="gs-kpi-sub">Siklus Evolusi</div>
         </div>
-        <div class="gs-card" style="padding: 14px 16px; border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
-            <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">🏆 Rata-Rata Fitness</div>
-            <div style="font-size: 1.35rem; font-weight: 800; color: #0F172A; line-height: 1.2;">{stats['final_best_fitness']:.4f}</div>
-            <div style="font-size: 0.74rem; font-weight: 600; color: #059669; margin-top: 6px;">▲ +{fitness_improvement:.4f}</div>
+        <div class="gs-card gs-kpi-card">
+            <div class="gs-kpi-label">🏆 Rata-Rata Fitness</div>
+            <div class="gs-kpi-value" style="font-size: 1.35rem;">{stats['final_best_fitness']:.4f}</div>
+            <div class="gs-kpi-sub" style="font-weight: 600; color: #059669;">▲ +{fitness_improvement:.4f}</div>
         </div>
-        <div class="gs-card" style="padding: 14px 16px; border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
-            <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">⚡ Total Konflik Akhir</div>
-            <div style="font-size: 1.35rem; font-weight: 800; color: #0F172A; line-height: 1.2;">{final_konflik}</div>
-            <div style="font-size: 0.74rem; font-weight: 600; color: #059669; margin-top: 6px;">▼ {konf_delta_str}</div>
+        <div class="gs-card gs-kpi-card">
+            <div class="gs-kpi-label">⚡ Total Konflik Akhir</div>
+            <div class="gs-kpi-value" style="font-size: 1.35rem;">{final_konflik}</div>
+            <div class="gs-kpi-sub" style="font-weight: 600; color: #059669;">▼ {konf_delta_str}</div>
         </div>
-        <div class="gs-card" style="padding: 14px 16px; border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
-            <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">📈 Peningkatan Kualitas</div>
-            <div style="font-size: 1.35rem; font-weight: 800; color: #0F172A; line-height: 1.2;">+{improvement_pct}%</div>
-            <div style="font-size: 0.74rem; color: #64748B; margin-top: 6px;">Dari Populasi Awal</div>
+        <div class="gs-card gs-kpi-card">
+            <div class="gs-kpi-label">📈 Peningkatan Kualitas</div>
+            <div class="gs-kpi-value" style="font-size: 1.35rem;">+{improvement_pct}%</div>
+            <div class="gs-kpi-sub">Dari Populasi Awal</div>
         </div>
-        <div class="gs-card" style="padding: 14px 16px; border-radius: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
-            <div style="font-size: 0.82rem; font-weight: 600; color: #475569; margin-bottom: 6px;">✅ Kelas Bebas Bentrok</div>
-            <div style="font-size: 1.35rem; font-weight: 800; color: #0F172A; line-height: 1.2;">{jadwal_optimal}/{total_jadwal}</div>
-            <div style="font-size: 0.74rem; color: #64748B; margin-top: 6px;">Jadwal Teroptimasi</div>
+        <div class="gs-card gs-kpi-card">
+            <div class="gs-kpi-label">✅ Kelas Bebas Bentrok</div>
+            <div class="gs-kpi-value" style="font-size: 1.35rem;">{jadwal_optimal}/{total_jadwal}</div>
+            <div class="gs-kpi-sub">Jadwal Teroptimasi</div>
         </div>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-# Build progress DataFrame for Tab 4 & Export
 progress_data = []
 for i, gen in enumerate(results["history"]["generations"]):
     progress_data.append(
@@ -148,7 +151,7 @@ for i, gen in enumerate(results["history"]["generations"]):
     )
 df_progress = pd.DataFrame(progress_data)
 
-# ========== MULTI-VIEW EXPLORER TABS ==========
+# Tab eksplorasi jadwal, kalender, grafik, dan riwayat generasi
 tab_table, tab_calendar, tab_charts, tab_history = st.tabs(
     [
         "📋 Tabel Rekomendasi Jadwal",
@@ -158,7 +161,6 @@ tab_table, tab_calendar, tab_charts, tab_history = st.tabs(
     ]
 )
 
-# ----- TAB 1: TABEL REKOMENDASI INTERAKTIF -----
 with tab_table:
     f1, f2, f3, f4 = st.columns([1.4, 1.1, 1.1, 1.2])
     with f1:
@@ -219,23 +221,36 @@ with tab_table:
 
     leg1, leg2 = st.columns(2)
     with leg1:
-        st.markdown("🟢 **Hijau Lembut:** Jadwal optimal bebas bentrok (`Konflik = 0`, `Fitness = 1.0000`)")
+        st.markdown("🟢 **Hijau:** Jadwal optimal bebas bentrok (`Konflik = 0`, `Fitness = 1.0000`)")
     with leg2:
-        st.markdown("🔴 **Merah Lembut:** Jadwal memiliki bentrok waktu dengan ruangan atau dosen yang sama")
+        st.markdown("🔴 **Merah:** Jadwal memiliki bentrok waktu pada ruangan, dosen, atau prodi yang sama")
 
-# ----- TAB 2: MATRIKS KALENDER MINGGUAN -----
 with tab_calendar:
     st.markdown(
         "Visualisasi papan jadwal perkuliahan mingguan yang diurutkan secara kronologis berdasarkan **Hari** dan **Jam Mulai**."
     )
-    cal_prodi = st.selectbox(
-        "🎓 Filter Kalender Berdasarkan Program Studi (Opsional):",
-        options=["Semua Program Studi"] + sorted(df_rekomendasi["Prodi"].unique().tolist()),
-    )
+    col_filter, col_dl_pdf = st.columns([2.5, 1.2], vertical_alignment="bottom")
+    with col_filter:
+        cal_prodi = st.selectbox(
+            "🎓 Filter Kalender Berdasarkan Program Studi (Opsional):",
+            options=["Semua Program Studi"] + sorted(df_rekomendasi["Prodi"].unique().tolist()),
+        )
 
     df_cal = df_rekomendasi.copy()
     if cal_prodi != "Semua Program Studi":
         df_cal = df_cal[df_cal["Prodi"] == cal_prodi]
+
+    with col_dl_pdf:
+        cal_pdf_bytes = generate_weekly_calendar_pdf(df_cal, prodi_filter=cal_prodi, stats=stats)
+        file_suffix = cal_prodi.lower().replace(" ", "_") if cal_prodi != "Semua Program Studi" else "semua_prodi"
+        st.download_button(
+            label="📄 Unduh Kalender PDF (Landscape)",
+            data=cal_pdf_bytes,
+            file_name=f"kalender_mingguan_{file_suffix}.pdf",
+            mime="application/pdf",
+            type="primary",
+            width="stretch",
+        )
 
     df_cal["_sort_menit"] = df_cal["Waktu"].apply(lambda w: (parse_waktu(w) or (9999, 9999))[0])
     hari_cols_list = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"]
@@ -267,7 +282,6 @@ with tab_calendar:
                         unsafe_allow_html=True,
                     )
 
-# ----- TAB 3: GRAFIK EVOLUSI & DISTRIBUSI -----
 with tab_charts:
     g_col1, g_col2 = st.columns(2)
 
@@ -365,7 +379,6 @@ with tab_charts:
         )
         st.altair_chart(bar_prodi, width="stretch")
 
-# ----- TAB 4: RIWAYAT GENERASI & PERBANDINGAN POPULASI -----
 with tab_history:
     st.markdown("#### 📋 Tabel Progres Evolusi per Generasi")
 
@@ -409,11 +422,11 @@ with tab_history:
             hide_index=True,
         )
 
-# ========== DOWNLOAD SECTION ==========
+# Bagian unduhan laporan Excel, PDF, dan CSV
 st.markdown("---")
-st.markdown('<div class="gs-section-title">💾 Pusat Unduhan Laporan (Excel & CSV)</div>', unsafe_allow_html=True)
+st.markdown('<div class="gs-section-title">💾 Pusat Unduhan Laporan (Excel, PDF & CSV)</div>', unsafe_allow_html=True)
 
-dl_col1, dl_col2, dl_col3 = st.columns(3)
+dl_col1, dl_col2, dl_col3, dl_col4 = st.columns(4)
 
 with dl_col1:
     excel_buf = BytesIO()
@@ -421,28 +434,39 @@ with dl_col1:
         df_rekomendasi.to_excel(writer, index=False, sheet_name="Jadwal_Rekomendasi")
         df_progress.to_excel(writer, index=False, sheet_name="Riwayat_Evolusi")
     st.download_button(
-        label="📗 Download Laporan Lengkap (.xlsx)",
+        label="📗 Laporan Lengkap (.xlsx)",
         data=excel_buf.getvalue(),
-        file_name="laporan_jadwal_optimal.xlsx",
+        file_name="rekomendasi_jadwal_kuliah.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         type="primary",
         width="stretch",
     )
 
 with dl_col2:
-    tabel_csv = df_rekomendasi.to_csv(index=False).encode("utf-8")
+    full_pdf_bytes = generate_weekly_calendar_pdf(df_rekomendasi, prodi_filter="Semua Program Studi", stats=stats)
     st.download_button(
-        label="📥 Download Tabel Rekomendasi (.csv)",
-        data=tabel_csv,
-        file_name="tabel_rekomendasi_jadwal.csv",
-        mime="text/csv",
+        label="📄 Kalender PDF (Landscape)",
+        data=full_pdf_bytes,
+        file_name="kalender_jadwal_kuliah_landscape.pdf",
+        mime="application/pdf",
+        type="primary",
         width="stretch",
     )
 
 with dl_col3:
+    tabel_csv = df_rekomendasi.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="📥 Rekomendasi (.csv)",
+        data=tabel_csv,
+        file_name="rekomendasi_jadwal_kuliah.csv",
+        mime="text/csv",
+        width="stretch",
+    )
+
+with dl_col4:
     progress_csv = df_progress.to_csv(index=False).encode("utf-8")
     st.download_button(
-        label="📊 Download Riwayat Evolusi (.csv)",
+        label="📊 Riwayat Evolusi (.csv)",
         data=progress_csv,
         file_name="evolution_progress.csv",
         mime="text/csv",
